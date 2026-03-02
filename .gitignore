@@ -1,0 +1,96 @@
+# ===============================
+# Python
+# ===============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# ===============================
+# Virtual Environment
+# ===============================
+venv/
+.env/
+.env.*
+
+# ===============================
+# ML / AI Models & Artifacts
+# ===============================
+*.joblib
+*.h5
+*.keras
+*.ckpt
+*.pb
+saved_model/
+trained_model.joblib
+label_encoder.joblib
+le_oil.joblib
+le_fried.joblib
+le_sugar.joblib
+
+# ===============================
+# TensorFlow / Keras Cache
+# ===============================
+.tensorflow/
+tf_logs/
+logs/
+
+# ===============================
+# NLTK Data
+# ===============================
+nltk_datas/
+nltk_data/
+
+# ===============================
+# Firebase / Secrets
+# ===============================
+recipe-genie.json
+firebase_config.json
+*.pem
+*.key
+
+# ===============================
+# Dataset & Generated Files
+# ===============================
+Recipe_Data/
+processed_dataset/
+train dataset/
+*.csv
+*.xlsx
+*.zip
+
+# ===============================
+# Image & Media Cache
+# ===============================
+*.jpg
+*.jpeg
+*.png
+*.webp
+
+# ===============================
+# OS / Editor
+# ===============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===============================
+# IDEs
+# ===============================
+.vscode/
+.idea/
+*.iml
+
+# ===============================
+# Logs & Temp
+# ===============================
+*.log
+*.tmp
+*.bak
+
+# ===============================
+# Flask
+# ===============================
+instance/
+.flaskenv
