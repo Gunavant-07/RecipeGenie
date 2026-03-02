@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recipes - Gujarat Recipe AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <div class="logo">Gujarat Recipe AI</div>
+      <div class="hamburger"><i class="fas fa-bars"></i></div>
+      <ul class="nav-menu">
+        <li><a href="{{ url_for('home') }}">Home</a></li>
+        <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li><a href="{{ url_for('recipes_page') }}">Recipes</a></li>
+        <li><a href="{{ url_for('history_page') }}">History</a></li>
+        <li><a href="{{ url_for('health_page') }}">Health Tracker</a></li>
+        <li class="login-link"><a href="{{ url_for('login_page') }}">Login</a></li>
+        <li class="register-link"><a href="{{ url_for('register_page') }}">Register</a></li>
+        <li class="logout-link" style="display:none;"><a href="{{ url_for('home') }}" id="logout">Logout</a></li>
+      </ul>
+    </nav>
+  </header>
+
+ <section class="section">
+    <h2>Discover Gujarati Recipes</h2>
+
+    <!-- Filters -->
+    <div class="filter-group" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; align-items: center;">
+      <input type="text" id="search-input" placeholder="Search by name..." style="flex: 1; min-width: 200px; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
+      
+      <select id="state-select" style="padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
+        <option value="All">All States</option>
+        <option value="Gujarat" selected>Gujarat</option>
+        <option value="Maharashtra">Maharashtra</option>
+        <option value="Punjab">Punjab</option>
+      </select>
+
+      <label style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="checkbox" id="high-rated"> High Rated Only (≥4.5)
+      </label>
+
+      <button id="apply-filter" class="btn primary">Apply</button>
+    </div>
+
+    <!-- Recipe Grid -->
+    <div class="recipe-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;"></div>
+
+    <!-- Loading & End indicators -->
+    <div id="loading" class="loading" style="display: none; text-align: center; padding: 3rem 0;">
+      <div class="spinner"></div>
+      <p>Loading more recipes...</p>
+    </div>
+
+    <div id="no-more" style="display: none; text-align: center; padding: 3rem 0; color: var(--gray);">
+      <p>No more recipes to load.</p>
+    </div>
+
+    <!-- Favorites Section -->
+    <h2 style="margin-top: 3rem;">Your Favorites</h2>
+    <div class="favorite-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;"></div>
+  </section>
+
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

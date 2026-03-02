@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gujarat Smart Recipe Recommendation System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <div class="logo">Gujarat Recipe AI</div>
+      <div class="hamburger"><i class="fas fa-bars"></i></div>
+      <ul class="nav-menu">
+        <li><a href="{{ url_for('home') }}">Home</a></li>
+        <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li><a href="{{ url_for('recipes_page') }}">Recipes</a></li>
+        <li><a href="{{ url_for('history_page') }}">History</a></li>
+        <li><a href="{{ url_for('health_page') }}">Health Tracker</a></li>
+        <li class="login-link"><a href="{{ url_for('login_page') }}">Login</a></li>
+        <li class="register-link"><a href="{{ url_for('register_page') }}">Register</a></li>
+        <li class="logout-link" style="display:none;"><a href="{{ url_for('home') }}" id="logout">Logout</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Discover Authentic Gujarat Recipes</h1>
+    <p>Explore the rich flavors of Gujarat with smart recommendations based on your ingredients.</p>
+  </section>
+
+  <section class="section" id="ingredients">
+    <h2>Enter Your Ingredients</h2>
+    <div class="input-group">
+      <input type="text" id="ingredient" placeholder="e.g., besan, methi, yogurt">
+      <button class="mic"><i class="fas fa-microphone"></i></button>
+      <input type="file" id="imageInput" accept="image/*" capture="environment"style="display:none"/>
+      <button class="upload" onclick="document.getElementById('imageInput').click()"><i class="fas fa-camera"></i>Upload Image</button>
+      <button class="btn primary" id="add-ingredient">Add</button>
+    </div>
+    <div class="tags" id="tags-container"></div>
+    <button class="btn primary" id="find-recipes" style="margin-top:1rem;">Find Recipes</button>
+    <div class="loading"><div class="spinner"></div><p>Finding best matches...</p></div>
+  </section>
+
+  <section class="section">
+    <h2>Recommended Recipes</h2>
+    <div class="recipe-grid"></div>
+  </section>
+
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
