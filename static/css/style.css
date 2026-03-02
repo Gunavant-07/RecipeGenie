@@ -1,0 +1,486 @@
+/* Gujarat Smart Recipe Recommendation System - CSS */
+:root {
+  --primary: #FF9933; /* Saffron */
+  --secondary: #138808; /* Green */
+  --white: #ffffff;
+  --light: #f8f9fa;
+  --earth: #F5F5DC;
+  --text: #556B2F; /* Green-gray text */
+  --gray: #6c757d;
+  --success: #138808;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background: var(--white);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+a { text-decoration: none; color: inherit; }
+
+.navbar {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 1rem 5%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 1.5rem;
+}
+
+.nav-menu a {
+  color: var(--secondary);
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.nav-menu a:hover { color: var(--primary); }
+
+.hamburger {
+  display: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: var(--secondary);
+}
+
+@media (max-width: 768px) {
+  .hamburger { display: block; }
+  .nav-menu {
+    position: absolute;
+    top: 70px;
+    left: 0;
+    width: 100%;
+    background: var(--white);
+    flex-direction: column;
+    padding: 1rem 0;
+    display: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  .nav-menu.active { display: flex; }
+}
+
+.btn {
+  padding: 0.8rem 1.8rem;
+  border-radius: 50px;
+  font-weight: 600;
+  transition: all 0.3s;
+  cursor: pointer;
+  border: none;
+}
+
+.primary { background: linear-gradient(to right, var(--primary), #ff6600); color: white; }
+.primary:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(255,153,51,0.4); }
+
+.hero {
+  height: 80vh;
+  background: url('https://thumbs.dreamstime.com/b/traditional-indian-gujarati-thali-features-variety-dishes-naan-round-metal-platter-traditional-indian-thali-397583806.jpg') center/cover no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: white;
+  position: relative;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+
+.hero h1, .hero p { position: relative; z-index: 1; }
+
+.hero h1 { font-size: 3rem; margin-bottom: 1rem; }
+
+.hero p { font-size: 1.2rem; margin-bottom: 2rem; }
+
+.section { padding: 4rem 5%; }
+
+h2 { font-size: 2.2rem; margin-bottom: 1.5rem; color: var(--secondary); text-align: center; }
+
+.input-group {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 50px;
+  font-size: 1rem;
+}
+
+.mic, .upload {
+  background: var(--light);
+  border: none;
+  padding: 0.8rem;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: var(--gray);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.tag {
+  background: var(--secondary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag i { cursor: pointer; }
+
+/* =============================================================================== */
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.recipe-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.recipe-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+}
+
+.recipe-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.recipe-card h3 {
+  font-size: 1.1rem;
+  margin: 0.8rem 1rem 0.4rem;
+  color: var(--secondary);
+}
+
+.recipe-card .badge {
+  margin: 0 1rem 0.6rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.recipe-card .buttons {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  border-top: 1px solid #eee;
+}
+
+.recipe-card button, .recipe-card a {
+  padding: 0.6rem 1.2rem;
+  border-radius: 50px;
+  font-size: 0.9rem;
+}
+
+.like-btn {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.like-btn.liked {
+  color: #e74c3c;
+}
+
+.loading .spinner {
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid var(--primary);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* =============================================================================== */
+/* #loading-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Sentinel (invisible trigger for scroll) */
+#scroll-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+/* Make cards responsive */
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+@media (max-width: 600px) {
+  .recipe-grid {
+    grid-template-columns: 1fr;
+  }
+} */
+/* .recipe-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+} */
+
+/* @media (min-width: 768px) { .recipe-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); } } */
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+/* Favorite list */
+.favorite-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.favorite-item {
+  background: var(--light);
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+/* Like button */
+.like-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: var(--danger);
+  transition: color 0.3s;
+}
+
+.like-btn:hover {
+  color: var(--primary);
+}
+
+/* Cooked button */
+.cooked-btn {
+  margin-top: 1rem;
+}
+
+
+.recipe-card {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.recipe-card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0,0,0,0.15); }
+
+.recipe-card img { width: 100%; height: 200px; object-fit: cover; }
+
+.badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  margin: 0.5rem 0;
+  display: inline-block;
+}
+
+.healthy { background: var(--success); color: white; }
+.moderate { background: var(--warning); color: black; }
+.fast-food { background: var(--danger); color: white; }
+
+.match-bar {
+  background: #eee;
+  height: 8px;
+  border-radius: 4px;
+  margin: 1rem 1.5rem;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background: var(--primary);
+  width: 0;
+  transition: width 1s ease;
+}
+
+.match-text { font-size: 0.9rem; color: var(--gray); }
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  display: none;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(to bottom right, var(--primary), var(--secondary));
+}
+
+.auth-card {
+  background: rgba(255,255,255,0.95);
+  padding: 2.5rem;
+  border-radius: 15px;
+  box-shadow: var(--shadow);
+  width: 400px;
+  max-width: 90%;
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.auth-card h2 { color: var(--secondary); }
+
+.auth-card input {
+  width: 100%;
+  padding: 0.8rem;
+  margin: 0.8rem 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.error { color: var(--danger); font-size: 0.9rem; margin-top: 0.5rem; }
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.stats-grid, .weekly-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) { .stats-grid, .weekly-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); } }
+
+.pie-chart {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  margin: 1rem auto;
+}
+
+.bar-chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 200px;
+  margin: 2rem 0;
+}
+
+.bar {
+  width: 40px;
+  background: var(--primary);
+  border-radius: 5px 5px 0 0;
+  transition: height 1s ease;
+  text-align: center;
+  color: white;
+  font-size: 0.8rem;
+  padding-top: 0.5rem;
+}
+
+.history-item, .weekly-card {
+  background: white;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.missing { color: var(--danger); font-weight: bold; }
+
+@media (max-width: 480px) {
+  .hero h1 { font-size: 2.5rem; }
+  .section { padding: 3rem 5%; }
+}
+
+@media (max-width: 480px) {
+  .btn { padding: 1rem 2rem; font-size: 1.2rem; } /* Larger for touch */
+  .input-group { flex-direction: column; }
+  .recipe-grid { grid-template-columns: 1fr; }
+  .card { margin: 1rem 0; }
+}
