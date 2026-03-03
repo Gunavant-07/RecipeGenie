@@ -23,11 +23,15 @@ joblib==1.3.2
 # NLP
 # ----------------------------
 nltk==3.8.1
+tqdm==4.66.2
+
+matplotlib==3.8.3
+colorama==0.4.6
 
 # ----------------------------
 # Image Processing & DL
 # ----------------------------
-tensorflow==2.15.0
+tensorflow==2.18.0
 opencv-python==4.9.0.80
 Pillow==10.2.0
 
