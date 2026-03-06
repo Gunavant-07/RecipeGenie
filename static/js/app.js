@@ -169,6 +169,49 @@ if (logoutBtn) {
   });
 }
 
+
+// upload imagee
+
+// function uploadImage(){
+
+//     const input = document.getElementById("imageInput")
+//     const file = input.files[0]
+
+//     if(!file){
+//         alert("Select an image first")
+//         return
+//     }
+
+//     const preview = document.getElementById("preview")
+//     preview.src = URL.createObjectURL(file)
+
+//     const formData = new FormData()
+//     formData.append("image", file)
+
+//     fetch("/detect",{
+//         method:"POST",
+//         body:formData
+//     })
+//     .then(res=>res.json())
+//     .then(data=>{
+
+//         const resultDiv = document.getElementById("results")
+
+//         resultDiv.innerHTML = ""
+
+//         if(data.detected_ingredients.length === 0){
+//             resultDiv.innerHTML = "No ingredients detected"
+//             return
+//         }
+
+//         data.detected_ingredients.forEach(item=>{
+//             const p = document.createElement("p")
+//             p.innerText = item.ingredient + " (" + item.confidence + ")"
+//             resultDiv.appendChild(p)
+//         })
+
+//     })
+// }
 // Gujarat Smart Recipe Recommendation System - JavaScript
 
 // Mobile menu toggle
@@ -427,6 +470,41 @@ async function loadFavorites() {
     console.error('Favorites error:', err);
   }
 }
+
+
+// image detection   
+
+async function detectIngredients(){
+
+    const input = document.getElementById("imageInput")
+
+    if(input.files.length === 0){
+        alert("Please upload image")
+        return
+    }
+
+    const formData = new FormData()
+    formData.append("image", input.files[0])
+
+    const res = await fetch("/detect-ingredients",{
+        method:"POST",
+        body:formData
+    })
+
+    const data = await res.json()
+
+    const resultDiv = document.getElementById("detected-results")
+
+    resultDiv.innerHTML=""
+
+    data.ingredients.forEach(item=>{
+        const p=document.createElement("p")
+        p.innerText = item.ingredient + " (" + item.confidence + ")"
+        resultDiv.appendChild(p)
+    })
+
+}
+
 
 // Infinite scroll trigger
 window.addEventListener('scroll', () => {

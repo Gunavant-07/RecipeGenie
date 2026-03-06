@@ -36,7 +36,13 @@
     <div class="input-group">
       <input type="text" id="ingredient" placeholder="e.g., besan, methi, yogurt">
       <button class="mic"><i class="fas fa-microphone"></i></button>
-      <input type="file" id="imageInput" accept="image/*" capture="environment"style="display:none"/>
+      <div class="image-detection">
+        <h3>Upload Ingredient Image</h3>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="detectIngredients()">Detect Ingredients</button>
+        <div id="detected-results"></div>
+      </div>
+      {% comment %} <input type="file" id="imageInput" accept="image/*" capture="environment"style="display:none"/> {% endcomment %}
       <button class="upload" onclick="document.getElementById('imageInput').click()"><i class="fas fa-camera"></i>Upload Image</button>
       <button class="btn primary" id="add-ingredient">Add</button>
     </div>

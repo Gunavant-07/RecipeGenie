@@ -481,6 +481,22 @@ def recipes_details():
     
     return jsonify({'message': 'Updated', 'suggestions': suggestions}), 200
 
+## image detection 
+
+@app.route('/detect-ingredients', methods=['POST'])
+def detect_ingredients():
+
+    if 'image' not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+
+    file = request.files['image']
+    image_bytes = file.read()
+
+    detected = detect_ingredients_from_image(image_bytes)
+
+    return jsonify({
+        "ingredients": detected
+    }), 200
 
 # # Recommend endpoint (NLP, Image, ML)
 # @app.route('/recommend', methods=['POST'])

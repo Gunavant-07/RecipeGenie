@@ -10,8 +10,8 @@ from sklearn.model_selection import train_test_split
 # CONFIGURATION
 # =========================
 
-RAW_DATA_DIR = r"F:\train dataset"
-OUTPUT_DIR = r"F:\Proceesd images dataset"
+RAW_DATA_DIR = r"F:\resized images\imagedataset"
+OUTPUT_DIR = r"F:\resized images\trained data"
 
 IMAGE_SIZE = 224
 TRAIN_RATIO = 0.7
