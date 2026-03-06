@@ -15,7 +15,6 @@ from image_detection import detect_ingredients_from_image
 app = Flask(__name__)
 CORS(app)  
 
-
 @app.route('/')
 @app.route('/home')
 def home():
@@ -99,7 +98,6 @@ CHECK_FOR_DUPLICATES = True                  # prevent re-uploading same recipe 
 BASE_IMAGE_URL = "https://recipesimages.edgeone.app/"
 FALLBACK_IMAGE = "https://recipesimages.edgeone.app/default.jpg"
 # ==============================================
-
 
 def upload_gujarati_recipes():
     print("=== STARTING FIRESTORE UPLOAD SCRIPT ===")
