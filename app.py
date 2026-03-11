@@ -2,23 +2,35 @@ from flask import Flask, request, jsonify, render_template ,redirect, url_for
 from flask_cors import CORS
 from firebase_admin import auth
 import pandas as pd
-from ml_models import train_health_classifier, classify_recipe_health, recommend_recipes, personalized_recommendations
-from nlp_utils import process_ingredients
+# from ml_models import train_health_classifier, classify_recipe_health, recommend_recipes, personalized_recommendations
+# from nlp_utils import process_ingredients
 import datetime
 import random
 from firebase_config import database,datab
 from google.api_core.exceptions import FailedPrecondition
 import re
+import os
 import urllib.parse
-from image_detection import detect_ingredients_from_image
+# from image_detection import detect_ingredient
 
 app = Flask(__name__)
 CORS(app)  
 
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 @app.route('/')
 @app.route('/home')
 def home():
-    return render_template('index.html')
+    firebase_config = {
+        "apiKey": os.getenv("FIREBASE_API_KEY"),
+        "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
+        "projectId": os.getenv("FIREBASE_PROJECT_ID"),
+        "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+        "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
+        "appId": os.getenv("FIREBASE_APP_ID")
+    }
+    return render_template('index.html',firebase_config=firebase_config)
 
 @app.route('/dashboard')
 def dashboard():
@@ -36,7 +48,7 @@ def health_page():
 def register_page():
     return render_template('register.html')
 
-#user authentication on register
+# user authentication on register
 @app.route('/save-user', methods=['POST'])
 def save_user():
     try:
@@ -69,6 +81,23 @@ def save_user():
         print("ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
+
+# @app.route("/predict", methods=["POST"])
+# def predict():
+
+#     file = request.files["file"]
+
+#     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+#     file.save(filepath)
+
+#     result = detect_ingredient(filepath)
+
+#     return render_template(
+#         "index.html",
+#         prediction=result,
+#         image_path=filepath
+#     )
+    
 # Login
 @app.route('/login', methods=['GET', 'POST'])
 def login_page():
@@ -90,14 +119,15 @@ def login_page():
     return render_template('login.html')
    
 
-#....................................................................................
-CSV_FILE = 'Recipe_Data/recipes.csv'                  # your file name
+# #....................................................................................
+CSV_FILE = 'E:/4th Semester/final project/Food recomandation web app/23-01-26/Recipe_Data/recipes.csv'   # your file name
+
 COLLECTION_NAME = 'recipes'                  # Firestore collection
 CHECK_FOR_DUPLICATES = True                  # prevent re-uploading same recipe name
 
 BASE_IMAGE_URL = "https://recipesimages.edgeone.app/"
 FALLBACK_IMAGE = "https://recipesimages.edgeone.app/default.jpg"
-# ==============================================
+# # ==============================================
 
 def upload_gujarati_recipes():
     print("=== STARTING FIRESTORE UPLOAD SCRIPT ===")
@@ -202,7 +232,7 @@ def upload_gujarati_recipes():
     except Exception as e:
         print("Unexpected error during upload:")
         print(str(e))
-#....................................................................................   
+# #....................................................................................   
 
 def clean_recipe_name(name: str) -> str:
     if not isinstance(name, str):
@@ -247,25 +277,13 @@ def make_image_url(recipe_name: str) -> str:
 
     return f"{BASE_IMAGE_URL}{safe_name}.jpg"
  
-@app.route('/detect-ingredients', methods=['POST'])
-def detect_ingredients():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image uploaded'}), 400
 
-    image = request.files['image']
-    image_bytes = image.read()
-
-    ingredients = detect_ingredients_from_image(image_bytes)
-
-    return jsonify({
-        'ingredients': ingredients
-    }), 200
     
 @app.route('/recipes-page')
 def recipes_page():
     return render_template('recipes.html')
 
-# API: Get filtered recipes (Firestore)
+# # API: Get filtered recipes (Firestore)
 @app.route('/get-recipes', methods=['GET'])
 def get_recipes():
     print("[DEBUG] /get-recipes called with params:", dict(request.args))
@@ -356,7 +374,7 @@ def get_recipes():
             'message': str(e)
         }), 500
         
-# API: Add to favorites (Realtime DB)
+# # API: Add to favorites (Realtime DB)
 @app.route('/like-recipe', methods=['POST'])
 def like_recipe():
     data = request.get_json()
@@ -371,7 +389,7 @@ def like_recipe():
 
     return jsonify({'message': 'Added to favorites'}), 200
 
-# API: Remove from favorites
+# # API: Remove from favorites
 @app.route('/unlike-recipe', methods=['POST'])
 def unlike_recipe():
     data = request.get_json()
@@ -385,7 +403,7 @@ def unlike_recipe():
 
     return jsonify({'message': 'Removed from favorites'}), 200
 
-# API: Get user's favorites (Realtime DB IDs → Firestore full data)
+# # API: Get user's favorites (Realtime DB IDs → Firestore full data)
 @app.route('/favorites/<user_id>', methods=['GET'])
 def get_favorites(user_id):
     try:
@@ -432,7 +450,7 @@ def get_favorites(user_id):
             'message': str(e)
         }), 500
 
-# Recipe detail page
+# # Recipe detail page
 @app.route('/recipe-detail/<recipe_id>')
 def recipe_detail(recipe_id):
     recipe = datab.collection('recipes').document(recipe_id).get().to_dict()
@@ -441,7 +459,7 @@ def recipe_detail(recipe_id):
     return render_template('recipe.html', recipe=recipe)
 
 
-# Cooked
+# # Cooked
 @app.route('/recipe', methods=['POST'])
 def recipes_details():
     data = request.json
@@ -481,20 +499,20 @@ def recipes_details():
 
 ## image detection 
 
-@app.route('/detect-ingredients', methods=['POST'])
-def detect_ingredients():
+# @app.route('/detect-ingredients', methods=['POST'])
+# def detect_ingredients():
 
-    if 'image' not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
+#     if 'image' not in request.files:
+#         return jsonify({"error": "No image uploaded"}), 400
 
-    file = request.files['image']
-    image_bytes = file.read()
+#     file = request.files['image']
+#     image_bytes = file.read()
 
-    detected = detect_ingredients_from_image(image_bytes)
+#     detected = detect_ingredients_from_image(image_bytes)
 
-    return jsonify({
-        "ingredients": detected
-    }), 200
+#     return jsonify({
+#         "ingredients": detected
+#     }), 200
 
 # # Recommend endpoint (NLP, Image, ML)
 # @app.route('/recommend', methods=['POST'])
@@ -563,7 +581,7 @@ def cooked():
 
     return jsonify({'message': 'Updated', 'suggestions': suggestions}), 200
 
-# Get History
+# # Get History
 @app.route('/history/<user_id>', methods=['GET'])
 def get_history(user_id):
     history = datab.collection('history').where('user_id', '==', user_id).stream()

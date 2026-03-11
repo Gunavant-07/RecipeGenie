@@ -1,0 +1,91 @@
+path: F:/processed_dataset
+
+train: train/images
+val: val/images
+test: test/images
+
+names:
+  0: almonds
+  1: Amla (Gooseberry)
+  2: apple
+  3: Apricot
+  4: Avocado
+  5: baking_powder
+  6: banana
+  7: bay_leaf
+  8: beans
+  9: beetroot
+  10: Black Beans
+  11: Black Pepper
+  12: Bottle Gourd
+  13: Brinjal (Eggplant)
+  14: broccoli
+  15: Brown Sugar
+  16: butter
+  17: cabbage
+  18: capsicum
+  19: cardamom
+  20: carrot
+  21: cashew
+  22: cauliflower
+  23: chicken
+  24: chili powder
+  25: chilli
+  26: cinnamon
+  27: Cinnamon Powder
+  28: cloves
+  29: coconut
+  30: Coriander Leaves
+  31: Coriender seeds
+  32: corn
+  33: Corn Flour
+  34: cream
+  35: cucumber
+  36: cumin
+  37: Cumin Seeds
+  38: Dates
+  39: egg
+  40: Fennel Seeds
+  41: Garam Masala
+  42: garlic
+  43: ginger
+  44: Grapes
+  45: Green Chilli
+  46: Honey
+  47: jackfruit
+  48: Kiwi
+  49: lemon
+  50: Lettuce
+  51: Nutmeg
+  52: oil
+  53: onion
+  54: orange
+  55: Papaya
+  56: Paprika
+  57: peanuts
+  58: peas
+  59: pineapple
+  60: Plum
+  61: pomegranate
+  62: potato
+  63: pumpkin
+  64: radish
+  65: raisins
+  66: Saffron
+  67: salt
+  68: Semolina (Sooji)
+  69: Sesame Seeds
+  70: spinach
+  71: Star Anise
+  72: strawberry
+  73: sugar
+  74: Sweet Corn
+  75: Sweet Potato
+  76: tamarind
+  77: tomato
+  78: turmeric
+  79: Turnip
+  80: Walnuts
+  81: Watermelon
+  82: wheat_flour
+  83: zucchini

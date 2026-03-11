@@ -4,6 +4,9 @@ import logging
 import numpy as np
 from tqdm import tqdm
 from sklearn.metrics import classification_report
+
+import os
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications import MobileNetV2
@@ -179,5 +182,13 @@ val_loss, val_accuracy = model.evaluate(val_data)
 print("\n🎯 DATASET ACCURACY:", val_accuracy)
 
 logging.info(f"Validation accuracy: {val_accuracy}")
+with open(LOG_FILE, "a") as f:
+    f.write("\n====================================\n")
+    f.write("FINAL DATASET EVALUATION\n")
+    f.write(f"Validation Loss: {val_loss}\n")
+    f.write(f"Validation Accuracy: {val_accuracy}\n")
+    f.write("====================================\n")
+
+print("\nAccuracy saved in:", LOG_FILE)
 
 print("\nLogs saved in:", LOG_FILE)

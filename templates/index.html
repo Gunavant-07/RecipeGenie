@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
 </head>
 <body>
   <header>
@@ -42,7 +43,7 @@
         <button onclick="detectIngredients()">Detect Ingredients</button>
         <div id="detected-results"></div>
       </div>
-      {% comment %} <input type="file" id="imageInput" accept="image/*" capture="environment"style="display:none"/> {% endcomment %}
+      
       <button class="upload" onclick="document.getElementById('imageInput').click()"><i class="fas fa-camera"></i>Upload Image</button>
       <button class="btn primary" id="add-ingredient">Add</button>
     </div>
@@ -56,6 +57,7 @@
     <div class="recipe-grid"></div>
   </section>
 
+  <script> window.firebaseConfig = {{ firebase_config | tojson }}; </script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

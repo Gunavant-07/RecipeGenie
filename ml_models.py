@@ -16,7 +16,7 @@ def train_health_classifier():
     
     # Read YOUR Excel file (not csv)
     try:
-        df = pd.read_csv('Recipe_Data/recipes.csv')
+        df = pd.read_csv('E:/4th Semester/final project/Food recomandation web app/23-01-26/Recipe_Data/recipes.csv')
     except FileNotFoundError:
         print("ERROR: recipes.xlsx not found in the same folder!")
         return

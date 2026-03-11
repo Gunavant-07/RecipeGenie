@@ -1,30 +1,27 @@
-from ultralytics import YOLO
-from PIL import Image
 import numpy as np
-import io
+import os
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-# Load trained YOLO model
-model = YOLO("models/best.pt")   # path to your trained ingredient model
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+import os
 
+model = tf.keras.models.load_model("model/ingredient_model.h5")
 
-def detect_ingredients_from_image(image_bytes):
+dataset_path = "F:/processed_dataset/train"
 
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    img_np = np.array(image)
+class_names = sorted(os.listdir(dataset_path))
 
-    results = model(img_np)
+def detect_ingredient(img_path):
 
-    detected = []
+    img = image.load_img(img_path, target_size=(224,224))
+    img_array = image.img_to_array(img)
 
-    for r in results:
-        for box in r.boxes:
-            cls = int(box.cls[0])
-            label = model.names[cls]
-            confidence = float(box.conf[0])
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array = img_array / 255.0
 
-            detected.append({
-                "ingredient": label,
-                "confidence": round(confidence, 3)
-            })
+    predictions = model.predict(img_array)
 
-    return detected
+    predicted_index = np.argmax(predictions)
+
+    return class_names[predicted_index]
