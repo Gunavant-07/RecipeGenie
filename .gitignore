@@ -48,6 +48,8 @@ nltk_data/
 # ===============================
 recipe-genie.json
 firebase_config.json
+package-lock.json
+package.json
 *.pem
 *.key
 
