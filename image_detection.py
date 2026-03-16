@@ -1,27 +1,123 @@
-import numpy as np
-import os
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-
 import tensorflow as tf
-from tensorflow.keras.preprocessing import image
-import os
+import numpy as np
+from PIL import Image
 
-model = tf.keras.models.load_model("model/ingredient_model.h5")
+# load trained model
+model = tf.keras.models.load_model("model/ingredient_model.h5",
+    compile=False)
 
-dataset_path = "F:/processed_dataset/train"
+# ingredient classes (must match training order)
+class_names = [
+    "almonds",
+    "Amla (Gooseberry)",
+    "apple",
+    "Apricot",
+    "Avocado",
+    "baking_powder",
+    "banana",
+    "bay_leaf",
+    "beans",
+    "beetroot",
+    "Black Beans",
+    "Black Pepper",
+    "Bottle Gourd",
+    "Brinjal (Eggplant)",
+    "broccoli",
+    "Brown Sugar",
+    "butter",
+    "cabbage",
+    "capsicum",
+    "cardamom",
+    "carrot",
+    "cashew",
+    "cauliflower",
+    "chicken",
+    "chili powder",
+    "chilli",
+    "cinnamon",
+    "Cinnamon Powder",
+    "cloves",
+    "coconut",
+    "Coriander Leaves",
+    "Coriender seeds",
+    "corn",
+    "Corn Flour",
+    "cream",
+    "cucumber",
+    "cumin",
+    "Cumin Seeds",
+    "Dates",
+    "egg",
+    "Fennel Seeds",
+    "Garam Masala",
+    "garlic",
+    "ginger",
+    "Grapes",
+    "Green Chilli",
+    "Honey",
+    "jackfruit",
+    "Kiwi",
+    "lemon",
+    "Lettuce",
+    "Nutmeg",
+    "oil",
+    "onion",
+    "orange",
+    "Papaya",
+    "Paprika",
+    "peanuts",
+    "peas",
+    "pineapple",
+    "Plum",
+    "pomegranate",
+    "potato",
+    "pumpkin",
+    "radish",
+    "raisins",
+    "Saffron",
+    "salt",
+    "Semolina (Sooji)",
+    "Sesame Seeds",
+    "spinach",
+    "Star Anise",
+    "strawberry",
+    "sugar",
+    "Sweet Corn",
+    "Sweet Potato",
+    "tamarind",
+    "tomato",
+    "turmeric",
+    "Turnip",
+    "Walnuts",
+    "Watermelon",
+    "wheat_flour",
+    "zucchini",
+]
 
-class_names = sorted(os.listdir(dataset_path))
+detect_ingredients("static/uploads/6.jpg")
 
-def detect_ingredient(img_path):
+def detect_ingredients(image_file):
 
-    img = image.load_img(img_path, target_size=(224,224))
-    img_array = image.img_to_array(img)
+    # read image
+    img = Image.open(image_file).convert("RGB")
 
+    # resize to model input
+    img = img.resize((224, 224))
+
+    # convert to numpy
+    img_array = np.array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
-    img_array = img_array / 255.0
 
+    # predict
     predictions = model.predict(img_array)
 
+    # get highest prediction
     predicted_index = np.argmax(predictions)
+    confidence = float(np.max(predictions))
 
-    return class_names[predicted_index]
+    ingredient = class_names[predicted_index]
+
+    return [{
+        "ingredient": ingredient,
+        "confidence": confidence
+    }]

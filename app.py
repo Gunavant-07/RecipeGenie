@@ -2,36 +2,53 @@ from flask import Flask, request, jsonify, render_template ,redirect, url_for
 from flask_cors import CORS
 from firebase_admin import auth
 import pandas as pd
-# from ml_models import train_health_classifier, classify_recipe_health, recommend_recipes, personalized_recommendations
-# from nlp_utils import process_ingredients
+from ml_models import train_health_classifier, classify_recipe_health, recommend_recipes, personalized_recommendations
+from nlp_utils import process_ingredients
 import datetime
 import random
 from firebase_config import database,datab
 from google.api_core.exceptions import FailedPrecondition
 import re
-import os
 import urllib.parse
-# from image_detection import detect_ingredient
+
+
 
 app = Flask(__name__)
 CORS(app)  
 
-UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# UPLOAD_FOLDER = "static/uploads"
+# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/')
 @app.route('/home')
 def home():
-    firebase_config = {
-        "apiKey": os.getenv("FIREBASE_API_KEY"),
-        "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
-        "projectId": os.getenv("FIREBASE_PROJECT_ID"),
-        "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
-        "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
-        "appId": os.getenv("FIREBASE_APP_ID")
-    }
-    return render_template('index.html',firebase_config=firebase_config)
+    return render_template('index.html')
 
+# @app.route("/detect-ingredients", methods=["POST"])
+# def detect():
+
+#     file = request.files["image"]
+#     from image_detection import detect_ingredients
+#     ingredients = detect_ingredients(file)
+
+#     return jsonify({
+#         "ingredients": ingredients
+#     })
+
+@app.route("/detect-ingredients", methods=["POST"])
+def detect():
+
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+
+    file = request.files["image"]
+    from image_detection import detect_ingredients
+    ingredients = detect_ingredients(file)
+
+    return jsonify({
+        "ingredients": ingredients
+    })
+    
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
@@ -82,22 +99,6 @@ def save_user():
         return jsonify({"error": str(e)}), 500
 
 
-# @app.route("/predict", methods=["POST"])
-# def predict():
-
-#     file = request.files["file"]
-
-#     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-#     file.save(filepath)
-
-#     result = detect_ingredient(filepath)
-
-#     return render_template(
-#         "index.html",
-#         prediction=result,
-#         image_path=filepath
-#     )
-    
 # Login
 @app.route('/login', methods=['GET', 'POST'])
 def login_page():
@@ -278,7 +279,6 @@ def make_image_url(recipe_name: str) -> str:
     return f"{BASE_IMAGE_URL}{safe_name}.jpg"
  
 
-    
 @app.route('/recipes-page')
 def recipes_page():
     return render_template('recipes.html')
@@ -497,23 +497,81 @@ def recipes_details():
     
     return jsonify({'message': 'Updated', 'suggestions': suggestions}), 200
 
-## image detection 
 
-# @app.route('/detect-ingredients', methods=['POST'])
-# def detect_ingredients():
 
-#     if 'image' not in request.files:
-#         return jsonify({"error": "No image uploaded"}), 400
+# recommend REcipes
 
-#     file = request.files['image']
-#     image_bytes = file.read()
+# @app.route('/recommend', methods=['POST'])
+# def recommend():
 
-#     detected = detect_ingredients_from_image(image_bytes)
+#     ingredients_text = request.form.get("ingredients","")
 
-#     return jsonify({
-#         "ingredients": detected
-#     }), 200
+#     processed = process_ingredients(ingredients_text)
 
+#     recipes = recommend_recipes(processed)
+
+#     return jsonify(recipes),200
+
+def recommend_recipes(processed_ingredients):
+
+    recipes = datab.collection('recipes').stream()
+
+    results = []
+
+    for recipe in recipes:
+
+        data = recipe.to_dict()
+
+        recipe_ingredients = [i.lower() for i in data.get('ingredients',[])]
+
+        matched = list(set(processed_ingredients) & set(recipe_ingredients))
+
+        total = len(recipe_ingredients)
+
+        if total == 0:
+            continue
+
+        score = (len(matched) / total) * 100
+
+        data['matching_score'] = score
+        data['recipe_id'] = recipe.id
+
+        results.append(data)
+
+    results = sorted(results, key=lambda x: x['matching_score'], reverse=True)
+
+    return results[:10]
+
+
+@app.route('/health-report/<user_id>')
+def health_report(user_id):
+
+    user = datab.collection("users").document(user_id).get().to_dict()
+
+    healthy = user.get("healthy_count",0)
+    moderate = user.get("moderate_count",0)
+    fast = user.get("fastfood_count",0)
+
+    score = user.get("health_score",0)
+
+    status = "Good"
+
+    if score < 0:
+        status = "Poor"
+
+    elif score < 10:
+        status = "Moderate"
+
+    else:
+        status = "Healthy Lifestyle"
+
+    return jsonify({
+        "healthy":healthy,
+        "moderate":moderate,
+        "fastfood":fast,
+        "health_score":score,
+        "status":status
+    })
 # # Recommend endpoint (NLP, Image, ML)
 # @app.route('/recommend', methods=['POST'])
 # def recommend():
@@ -541,45 +599,38 @@ def recipes_details():
 
 @app.route('/cooked', methods=['POST'])
 def cooked():
+
     data = request.json
     user_id = data['user_id']
     recipe_id = data['recipe_id']
 
-    recipe_doc = datab.collection('recipes').document(recipe_id).get()
-    if not recipe_doc.exists:
-        return jsonify({'error': 'Recipe not found'}), 404
+    recipe = datab.collection('recipes').document(recipe_id).get().to_dict()
 
-    recipe = recipe_doc.to_dict()
     category = recipe['category']
 
     user_ref = datab.collection('users').document(user_id)
-    user_doc = user_ref.get()
-    if not user_doc.exists:
-        return jsonify({'error': 'User not found'}), 404
+    user = user_ref.get().to_dict()
 
-    user = user_doc.to_dict()
-
-    if category == 'Healthy':
+    if category == "Healthy":
         user['healthy_count'] += 1
-    elif category == 'Fast Food':
+
+    elif category == "Fast Food":
         user['fastfood_count'] += 1
+
     else:
         user['moderate_count'] += 1
 
-    user['health_score'] = (user['healthy_count'] * 2) - (user['fastfood_count'] * 2)
+    user['health_score'] = (user['healthy_count']*2) - (user['fastfood_count']*2)
+
     user_ref.update(user)
 
     datab.collection('history').add({
-        'user_id': user_id,
-        'recipe_id': recipe_id,
-        'date': datetime.datetime.now().isoformat()
+        "user_id":user_id,
+        "recipe_id":recipe_id,
+        "date":datetime.datetime.now()
     })
 
-    suggestions = []
-    if user['health_score'] < 10:
-        suggestions = recommend_recipes(['healthy', 'gujarat'])  # Suggest healthy
-
-    return jsonify({'message': 'Updated', 'suggestions': suggestions}), 200
+    return jsonify({"message":"updated"}),200
 
 # # Get History
 @app.route('/history/<user_id>', methods=['GET'])
@@ -595,5 +646,6 @@ def get_history(user_id):
 
 if __name__ == '__main__':
     # upload_gujarati_recipes()
+    print("Starting Flask server...")
     app.run(debug=True, port=5000)
     

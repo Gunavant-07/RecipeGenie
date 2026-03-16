@@ -2,25 +2,28 @@
 
 // Firebase Setup for Auth'
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js';
-import { getAnalytics } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 // Your web app's Firebase configuration
 
 const firebaseConfig = {
   apiKey: "AIzaSyDCJsc1P1swgnDvqlejcjo9uq60BdxHmBI",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  authDomain: "recipe-recommendation-259bf.firebaseapp.com",
+  databaseURL: "https://recipe-recommendation-259bf-default-rtdb.firebaseio.com",
+  projectId: "recipe-recommendation-259bf",
+  storageBucket: "recipe-recommendation-259bf.firebasestorage.app",
+  messagingSenderId: "225689206362",
+  appId: "1:225689206362:web:73dc41fc1bfdb22447e263",
+  measurementId: "G-46CVPYZ0QZ"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 const auth = getAuth(app);
+
 
 // Password validation function (manual, since Firebase doesn't have client-side validatePassword)
 function validatePasswordStrength(password) {
@@ -128,32 +131,6 @@ onAuthStateChanged(auth, (user) => {
 });
 
 
-const uploadBtn = document.querySelector('.upload');
-const imageInput = document.getElementById('imageInput');
-
-imageInput.addEventListener('change', async () => {
-  const file = imageInput.files[0];
-  if (!file) return;
-
-  const formData = new FormData();
-  formData.append('image', file);
-
-  try {
-    const res = await fetch('/detect-ingredients', {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await res.json();
-    console.log("Detected ingredients:", data.ingredients);
-
-    // Add detected ingredients as tags
-    data.ingredients.forEach(ing => addTag(ing));
-
-  } catch (err) {
-    console.error("Image upload error:", err);
-  }
-});
 // Logout
 const logoutBtn = document.getElementById('logout');
 if (logoutBtn) {
@@ -267,33 +244,82 @@ if (micBtn) {
 // Find Recipes
 if (findBtn) {
   findBtn.addEventListener('click', async () => {
+
+    // Collect ingredients from tags
+    const ingredients = Array.from(tagsContainer.querySelectorAll('.tag'))
+      .map(tag => tag.textContent.replace('×','').trim());
+
+    console.log("Finding recipes with ingredients:", ingredients);
+
+    if (ingredients.length === 0) {
+      alert("Please add ingredients first");
+      return;
+    }
+
     document.querySelector('.loading').style.display = 'block';
+
     const formData = new FormData();
-    formData.append('ingredients', ingredientInput.value);
-    if (imageInput.files[0]) formData.append('image', imageInput.files[0]);
+    formData.append('ingredients', ingredients.join(' '));
+
+    if (imageInput.files[0]) {
+      formData.append('image', imageInput.files[0]);
+    }
+
     const uid = localStorage.getItem('uid');
-    if (uid) formData.append('user_id', uid);
+    if (uid) {
+      formData.append('user_id', uid);
+    }
 
-    const res = await fetch('/recommend', { method: 'POST', body: formData });
-    const recs = await res.json();
+    try {
 
-    const grid = document.querySelector('.recipe-grid');
-    grid.innerHTML = '';
-    recs.forEach(recipe => {
-      const card = createRecipeCard(recipe);
-      grid.appendChild(card);
-      if (recipe.status === 'show_missing') {
-        const modal = document.createElement('div');
-        modal.style.position = 'fixed'; modal.style.top = '50%'; modal.style.left = '50%'; modal.style.transform = 'translate(-50%, -50%)';
-        modal.style.background = 'white'; modal.style.padding = '20px'; modal.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-        modal.innerHTML = `Missing: ${recipe.missing.join(', ')} <button onclick="this.parentNode.remove()">Close</button>`;
-        document.body.appendChild(modal);
-      }
-    });
+      const res = await fetch('/recommend', {
+        method: 'POST',
+        body: formData
+      });
+
+      const recs = await res.json();
+
+      console.log("Recipes received:", recs);
+
+      const grid = document.querySelector('.recipe-grid');
+      grid.innerHTML = '';
+
+      recs.forEach(recipe => {
+
+        const card = createRecipeCard(recipe);
+        grid.appendChild(card);
+
+        if (recipe.status === 'show_missing') {
+
+          const modal = document.createElement('div');
+
+          modal.style.position = 'fixed';
+          modal.style.top = '50%';
+          modal.style.left = '50%';
+          modal.style.transform = 'translate(-50%, -50%)';
+          modal.style.background = 'white';
+          modal.style.padding = '20px';
+          modal.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+
+          modal.innerHTML = `
+            Missing ingredients: ${recipe.missing.join(', ')}
+            <br><br>
+            <button onclick="this.parentNode.remove()">Close</button>
+          `;
+
+          document.body.appendChild(modal);
+        }
+
+      });
+
+    } catch (error) {
+      console.error("Recommendation error:", error);
+    }
+
     document.querySelector('.loading').style.display = 'none';
+
   });
 }
-
 // function createRecipeCard(recipe) {
 //   const card = document.createElement('div');
 //   card.classList.add('recipe-card');
@@ -444,6 +470,28 @@ async function loadRecipes(reset = false) {
   }
 }
 
+async function loadHealthReport(){
+
+const uid = localStorage.getItem("uid")
+
+if(!uid) return
+
+const res = await fetch(`/health-report/${uid}`)
+
+const data = await res.json()
+
+document.getElementById("healthy-count").innerText = data.healthy
+document.getElementById("moderate-count").innerText = data.moderate
+document.getElementById("fast-count").innerText = data.fastfood
+
+document.getElementById("health-score").innerText =
+`Health Score: ${data.health_score} (${data.status})`
+
+document.getElementById("health-progress").style.width =
+Math.min(100,Math.max(0,data.health_score*5))+"%"
+
+}
+
 // Load favorites
 async function loadFavorites() {
   const uid = localStorage.getItem('uid');
@@ -471,40 +519,249 @@ async function loadFavorites() {
 }
 
 
-// image detection   
+// // image detection   
+// async function detectIngredients(){
 
-async function detectIngredients(){
+//     const input = document.getElementById("imageUpload")
 
-    const input = document.getElementById("imageInput")
+//     if(input.files.length === 0){
+//         alert("Please upload image")
+//         return
+//     }
 
-    if(input.files.length === 0){
-        alert("Please upload image")
-        return
+//     const formData = new FormData()
+//     formData.append("image", input.files[0])
+
+//     const res = await fetch("/detect-ingredients",{
+//         method:"POST",
+//         body:formData
+//     })
+
+//     const data = await res.json()
+
+//     const resultDiv = document.getElementById("detected-results")
+
+//     resultDiv.innerHTML = ""
+
+//     data.ingredients.forEach(item=>{
+
+//         const p = document.createElement("p")
+
+//         p.innerText =
+//             item.ingredient +
+//             " (" +
+//             (item.confidence * 100).toFixed(1) +
+//             "%)"
+
+//         resultDiv.appendChild(p)
+
+//     })
+
+// }
+
+function detectIngredients() {
+
+    const imageUpload = document.getElementById("imageUpload");
+    const resultsDiv = document.getElementById("detected-results");
+
+    if (!imageUpload.files.length) {
+        alert("Please upload an image first");
+        return;
     }
 
-    const formData = new FormData()
-    formData.append("image", input.files[0])
+    const formData = new FormData();
+    formData.append("image", imageUpload.files[0]);
 
-    const res = await fetch("/detect-ingredients",{
-        method:"POST",
-        body:formData
+    fetch("/detect-ingredients", {
+        method: "POST",
+        body: formData
     })
+    .then(response => response.json())
+    .then(data => {
 
-    const data = await res.json()
+        resultsDiv.innerHTML = "";
 
-    const resultDiv = document.getElementById("detected-results")
+        if (!data.ingredients || data.ingredients.length === 0) {
+            resultsDiv.innerHTML = "No ingredients detected";
+            return;
+        }
 
-    resultDiv.innerHTML=""
+        data.ingredients.forEach(item => {
 
-    data.ingredients.forEach(item=>{
-        const p=document.createElement("p")
-        p.innerText = item.ingredient + " (" + item.confidence + ")"
-        resultDiv.appendChild(p)
+            const p = document.createElement("p");
+            p.innerText = item.ingredient + " (" + item.confidence.toFixed(2) + ")";
+
+            resultsDiv.appendChild(p);
+
+        });
+
+    })
+    .catch(error => {
+        console.error("Error:", error);
+    });
+
+}
+
+window.detectIngredients = detectIngredients;
+
+const startCameraBtn = document.getElementById("startCamera");
+const captureBtn = document.getElementById("captureBtn");
+const detectBtn = document.getElementById("detectBtn");
+
+const video = document.getElementById("camera");
+const canvas = document.getElementById("canvas");
+
+const imageUpload = document.getElementById("imageUpload");
+const resultsDiv = document.getElementById("detected-results");
+
+let stream;
+
+
+/* -------------------------
+START CAMERA
+--------------------------*/
+
+startCameraBtn.addEventListener("click", async () => {
+
+    try {
+
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: true
+        });
+
+        video.srcObject = stream;
+
+        video.style.display = "block";
+        captureBtn.style.display = "inline-block";
+
+    } catch (err) {
+
+        alert("Camera access denied");
+
+    }
+
+});
+
+
+
+/* -------------------------
+CAPTURE IMAGE
+--------------------------*/
+
+captureBtn.addEventListener("click", async () => {
+
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video, 0, 0);
+
+
+    canvas.toBlob(async function(blob) {
+
+        const formData = new FormData();
+
+        formData.append("image", blob, "capture.jpg");
+
+
+        const res = await fetch("/detect-ingredients", {
+
+            method: "POST",
+            body: formData
+
+        });
+
+        const data = await res.json();
+
+        displayResults(data.ingredients);
+
+    });
+
+});
+
+
+
+/* -------------------------
+UPLOAD IMAGE
+--------------------------*/
+
+detectBtn.addEventListener("click", async () => {
+
+    if (imageUpload.files.length === 0) {
+        alert("Please select image");
+        return;
+    }else{
+      const formData = new FormData();
+      formData.append("image", imageUpload.files[0]);
+
+      const res = await fetch("/detect-ingredients", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+
+      displayResults(data.ingredients);
+    }
+
+    
+
+});
+
+
+
+/* -------------------------
+SHOW RESULTS
+--------------------------*/
+function displayResults(recipes) {
+    console.log(recipes)
+    const grid = document.querySelector(".recipe-grid")
+
+    grid.innerHTML = ""
+
+    recipes.forEach(recipe => {
+
+        const card = document.createElement("div")
+
+        card.className = "recipe-card"
+
+        card.innerHTML = `
+
+<img src="/static/images/${recipe.name}.jpg">
+
+<h3>${recipe.name}</h3>
+
+<p>${Math.round(recipe.matching_score)}% Match</p>
+
+<a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">
+View Recipe
+</a>
+
+`
+
+        grid.appendChild(card)
+
     })
 
 }
 
+// function displayResults(items) {
 
+//     resultsDiv.innerHTML = "";
+
+//     items.forEach(item => {
+
+//         const p = document.createElement("p");
+
+//         p.innerText = item.ingredient + " (" + item.confidence.toFixed(2) + ")";
+
+//         resultsDiv.appendChild(p);
+
+//     });
+
+// }
+//
 // Infinite scroll trigger
 window.addEventListener('scroll', () => {
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
@@ -554,8 +811,10 @@ document.addEventListener('click', async e => {
 
 // Initial load
 document.addEventListener('DOMContentLoaded', () => {
-  loadRecipes(true); // First batch
-  loadFavorites();
+  
+    loadRecipes(true);
+    loadFavorites();
+
 });
 
 // Animate progress bars

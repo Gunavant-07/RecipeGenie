@@ -1,59 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Health Tracker - Gujarat Recipe AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-  <header>
-    <nav class="navbar">
-      <div class="logo">Gujarat Recipe AI</div>
-      <div class="hamburger"><i class="fas fa-bars"></i></div>
-      <ul class="nav-menu">
-        <li><a href="{{ url_for('home') }}">Home</a></li>
-        <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-        <li><a href="{{ url_for('recipes_page') }}">Recipes</a></li>
-        <li><a href="{{ url_for('history_page') }}">History</a></li>
-        <li><a href="{{ url_for('health_page') }}">Health Tracker</a></li>
-        <li class="login-link"><a href="{{ url_for('login_page') }}">Login</a></li>
-        <li class="register-link"><a href="{{ url_for('register_page') }}">Register</a></li>
-        <li class="logout-link" style="display:none;"><a href="{{ url_for('home') }}" id="logout">Logout</a></li>
-      </ul>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Health Tracker - Gujarat Recipe AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  </head>
+  <body>
+    <header>
+      <nav class="navbar">
+        <div class="logo">Gujarat Recipe AI</div>
+        <div class="hamburger">
+          <i class="fas fa-bars"></i>
+        </div>
+        <ul class="nav-menu">
+          <li>
+            <a href="{{ url_for('home') }}">Home</a>
+          </li>
+          <li>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+          </li>
+          <li>
+            <a href="{{ url_for('recipes_page') }}">Recipes</a>
+          </li>
+          <li>
+            <a href="{{ url_for('history_page') }}">History</a>
+          </li>
+          <li>
+            <a href="{{ url_for('health_page') }}">Health Tracker</a>
+          </li>
+          <li class="login-link">
+            <a href="{{ url_for('login_page') }}">Login</a>
+          </li>
+          <li class="register-link">
+            <a href="{{ url_for('register_page') }}">Register</a>
+          </li>
+          <li class="logout-link" style="display:none;">
+            <a href="{{ url_for('home') }}" id="logout">Logout</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
 
-  <section class="section">
-    <h2>Health Score Meter</h2>
-    <div class="card">
-      <p>75% - Good</p>
-      <div class="match-bar" data-width="75%"><div class="progress" style="width:75%;"></div></div>
-    </div>
+    <section class="section">
+      <h2>Health Score Meter</h2>
+      <div class="card">
+        <p id="health-score"></p>
+        <div class="match-bar">
+          <div class="progress" id="health-progress"></div>
+        </div>
+      </div>
+      <h2>Weekly Summary</h2>
+      <div class="weekly-grid">
+        <div class="weekly-card">
+          <h3>Healthy Recipes</h3>
+          <p id="healthy-count"></p>
+        </div>
+        <div class="weekly-card">
+          <h3>Moderate Recipes</h3>
+          <p id="moderate-count"></p>
+        </div>
+        <div class="weekly-card">
+          <h3>Fast Food</h3>
+          <p id="fast-count"></p>
+        </div>
+      </div>
 
-    <h2>Weekly Summary</h2>
-    <div class="weekly-grid">
-      <div class="weekly-card"><h3>Week 1</h3><p>5 Healthy, 2 Fast Food</p></div>
-      <div class="weekly-card"><h3>Week 2</h3><p>4 Healthy, 1 Moderate</p></div>
-    </div>
+      <h2>Bar Chart</h2>
+      <div class="bar-chart">
+        <div class="bar" style="height:80%;">Mon</div>
+        <div class="bar" style="height:60%;">Tue</div>
+        <div class="bar" style="height:90%;">Wed</div>
+        <div class="bar" style="height:70%;">Thu</div>
+        <div class="bar" style="height:50%;">Fri</div>
+      </div>
 
-    <h2>Bar Chart</h2>
-    <div class="bar-chart">
-      <div class="bar" style="height:80%;">Mon</div>
-      <div class="bar" style="height:60%;">Tue</div>
-      <div class="bar" style="height:90%;">Wed</div>
-      <div class="bar" style="height:70%;">Thu</div>
-      <div class="bar" style="height:50%;">Fri</div>
-    </div>
+      <h2>Suggestions</h2>
+      <div class="card">Include more veggies in your meals.</div>
 
-    <h2>Suggestions</h2>
-    <div class="card">Include more veggies in your meals.</div>
+      <div class="card" style="background: #ffebee; color: var(--danger);">Warning: High fast food intake this week!</div>
+    </section>
 
-    <div class="card" style="background: #ffebee; color: var(--danger);">Warning: High fast food intake this week!</div>
-  </section>
-
-  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-</body>
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
 </html>

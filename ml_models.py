@@ -98,13 +98,23 @@ def train_health_classifier():
 # Other functions remain the same (classify_recipe_health, recommend_recipes, personalized_recommendations)
 # ...
 def classify_recipe_health(features):
+
     model = joblib.load('trained_model.joblib')
     le_label = joblib.load('label_encoder.joblib')
-    df_input = pd.DataFrame([features])
-    df_input['oil_amount'] = 0 if features['oil_amount'] == 'low' else 1 if features['oil_amount'] == 'medium' else 2
-    df_input['fried'] = 1 if features['fried'] == 'yes' else 0
-    df_input['sugar'] = 0 if features['sugar'] == 'low' else 1 if features['sugar'] == 'medium' else 2
+
+    oil_map = {"low":0,"medium":1,"high":2}
+    fried_map = {"no":0,"yes":1}
+    sugar_map = {"low":0,"medium":1,"high":2}
+
+    df_input = pd.DataFrame([{
+        "oil_amount_enc": oil_map[features["oil_amount"]],
+        "calories": features["calories"],
+        "fried_enc": fried_map[features["fried"]],
+        "sugar_enc": sugar_map[features["sugar"]]
+    }])
+
     pred = model.predict(df_input)[0]
+
     return le_label.inverse_transform([pred])[0]
 
 def recommend_recipes(processed_ingredients):
