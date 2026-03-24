@@ -1,0 +1,23 @@
+!pip install -U ultralytics
+
+import os
+
+for root, dirs, files in os.walk("/kaggle/input"):
+    print(root)
+
+    from ultralytics import YOLO
+
+# dataset path
+DATA_YAML = "/kaggle/input/datasets/bsmily461/recipe-ingredients/dataset/dataset.yaml"
+
+model = YOLO("yolov8n.pt")  # fast model
+
+model.train(
+    data=DATA_YAML,
+    epochs=20,
+    imgsz=416,
+    batch=16,
+    device=0   # GPU
+)
+
+!cp /kaggle/working/runs/detect/train*/weights/best.pt /kaggle/working/

@@ -1,123 +1,79 @@
-import tensorflow as tf
-import numpy as np
-from PIL import Image
+# ingredient_detection.py
 
-# load trained model
-model = tf.keras.models.load_model("model/ingredient_model.h5",
-    compile=False)
+from ultralytics import YOLO
+import cv2
 
-# ingredient classes (must match training order)
-class_names = [
-    "almonds",
-    "Amla (Gooseberry)",
-    "apple",
-    "Apricot",
-    "Avocado",
-    "baking_powder",
-    "banana",
-    "bay_leaf",
-    "beans",
-    "beetroot",
-    "Black Beans",
-    "Black Pepper",
-    "Bottle Gourd",
-    "Brinjal (Eggplant)",
-    "broccoli",
-    "Brown Sugar",
-    "butter",
-    "cabbage",
-    "capsicum",
-    "cardamom",
-    "carrot",
-    "cashew",
-    "cauliflower",
-    "chicken",
-    "chili powder",
-    "chilli",
-    "cinnamon",
-    "Cinnamon Powder",
-    "cloves",
-    "coconut",
-    "Coriander Leaves",
-    "Coriender seeds",
-    "corn",
-    "Corn Flour",
-    "cream",
-    "cucumber",
-    "cumin",
-    "Cumin Seeds",
-    "Dates",
-    "egg",
-    "Fennel Seeds",
-    "Garam Masala",
-    "garlic",
-    "ginger",
-    "Grapes",
-    "Green Chilli",
-    "Honey",
-    "jackfruit",
-    "Kiwi",
-    "lemon",
-    "Lettuce",
-    "Nutmeg",
-    "oil",
-    "onion",
-    "orange",
-    "Papaya",
-    "Paprika",
-    "peanuts",
-    "peas",
-    "pineapple",
-    "Plum",
-    "pomegranate",
-    "potato",
-    "pumpkin",
-    "radish",
-    "raisins",
-    "Saffron",
-    "salt",
-    "Semolina (Sooji)",
-    "Sesame Seeds",
-    "spinach",
-    "Star Anise",
-    "strawberry",
-    "sugar",
-    "Sweet Corn",
-    "Sweet Potato",
-    "tamarind",
-    "tomato",
-    "turmeric",
-    "Turnip",
-    "Walnuts",
-    "Watermelon",
-    "wheat_flour",
-    "zucchini",
-]
+# Load your trained model (change path if needed)
+MODEL_PATH = "runs/detect/train/weights/best.pt"
 
-detect_ingredients("static/uploads/6.jpg")
+model = YOLO(MODEL_PATH)
 
-def detect_ingredients(image_file):
 
-    # read image
-    img = Image.open(image_file).convert("RGB")
+def detect_ingredients_from_image(image_path, conf_threshold=0.4):
+    """
+    Detect ingredients from image path
 
-    # resize to model input
-    img = img.resize((224, 224))
+    Args:
+        image_path (str): Path to image
+        conf_threshold (float): Confidence threshold
 
-    # convert to numpy
-    img_array = np.array(img) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
+    Returns:
+        list: detected ingredient names
+    """
 
-    # predict
-    predictions = model.predict(img_array)
+    results = model(image_path)
 
-    # get highest prediction
-    predicted_index = np.argmax(predictions)
-    confidence = float(np.max(predictions))
+    detected_items = []
 
-    ingredient = class_names[predicted_index]
+    for r in results:
+        boxes = r.boxes
 
-    return [{
-        "ingredient": ingredient,
-        "confidence": confidence
-    }]
+        for box in boxes:
+            conf = float(box.conf[0])
+            cls_id = int(box.cls[0])
+
+            if conf >= conf_threshold:
+                label = model.names[cls_id]
+                detected_items.append(label)
+
+    # Remove duplicates
+    detected_items = list(set(detected_items))
+
+    return detected_items
+
+
+# OPTIONAL: for Flask (image upload)
+def detect_ingredients_from_bytes(image_bytes, conf_threshold=0.4):
+    """
+    Detect ingredients from uploaded image (bytes)
+    """
+
+    import numpy as np
+
+    # Convert bytes → image
+    np_arr = np.frombuffer(image_bytes, np.uint8)
+    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+    results = model(img)
+
+    detected_items = []
+
+    for r in results:
+        for box in r.boxes:
+            conf = float(box.conf[0])
+            cls_id = int(box.cls[0])
+
+            if conf >= conf_threshold:
+                label = model.names[cls_id]
+                detected_items.append(label)
+
+    return list(set(detected_items))
+
+
+# TEST RUN
+if __name__ == "__main__":
+    image_path = "test.jpg"  # put any image
+
+    detected = detect_ingredients_from_image(image_path)
+
+    print("Detected Ingredients:", detected)

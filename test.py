@@ -1,46 +1,28 @@
-from ultralytics import YOLO
-import cv2
+import os
 
-print("Loading YOLO model...")
-model = YOLO("yolov8n.pt")
-print("Model loaded")
+base_path = r"F:\recipeGinie web app\Pre_processed_dataset\images"
 
+for folder in os.listdir(base_path):
+    folder_path = os.path.join(base_path, folder)
 
-def detect_ingredients_yolo(image_path):
+    if os.path.isdir(folder_path):
+        files = os.listdir(folder_path)
 
-    print("STEP 1: function started")
+        # STEP 1: Rename to temp names
+        for i, file in enumerate(files):
+            old_path = os.path.join(folder_path, file)
+            temp_path = os.path.join(folder_path, f"temp_{i}.tmp")
+            os.rename(old_path, temp_path)
 
-    img = cv2.imread(image_path)
+        # STEP 2: Rename to final names
+        temp_files = os.listdir(folder_path)
 
-    if img is None:
-        print("ERROR: Image not found")
-        return []
+        for i, file in enumerate(temp_files):
+            old_path = os.path.join(folder_path, file)
+            new_name = f"{folder}_{i+1}.jpg"  # or keep ext if needed
+            new_path = os.path.join(folder_path, new_name)
 
-    print("STEP 2: running detection")
+            os.rename(old_path, new_path)
+            print(f"{file} → {new_name}")
 
-    results = model(img)
-
-    detected_items = []
-
-    for r in results:
-        if r.boxes is None:
-            continue
-
-        for box in r.boxes:
-
-            cls_id = int(box.cls[0])
-            name = model.names[cls_id]
-            conf = float(box.conf[0])
-
-            detected_items.append({
-                "ingredient": name,
-                "confidence": conf
-            })
-
-    print("STEP 3: detection complete")
-
-    return detected_items
-
-
-result = detect_ingredients_yolo("static/uploads/6.jpg")
-print(result)
+print("Perfect renaming done ✅")
