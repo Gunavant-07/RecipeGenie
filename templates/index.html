@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gujarat Smart Recipe Recommendation System</title>
+    <title>Smart Recipe Recommendation System</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
@@ -11,7 +11,7 @@
   <body>
     <header>
       <nav class="navbar">
-        <div class="logo">Gujarat Recipe AI</div>
+        <div class="logo">RecipeGenie</div>
         <div class="hamburger">
           <i class="fas fa-bars"></i>
         </div>
@@ -77,7 +77,7 @@
 
         <div class="camera-box">
           <video id="camera" autoplay></video>
-
+          <button onclick="startCamera()" class="btn">Start Camera</button>
           <button onclick="captureImage()" class="btn primary">Capture</button>
         </div>
       </div>
@@ -90,8 +90,17 @@
     <section class="section">
       <button class="btn primary" id="find-recipes">Find Recipes</button>
 
-      <div class="loading">
+      <div id="loading" style="display:none;">
         <div class="spinner"></div>
+        <p>Loading recipes...</p>
+      </div>
+
+      <!-- No more data -->
+      <div id="no-more" style="display:none;">
+        <p>No more recipes</p>
+      </div>
+      <!---->
+      <div class="loading">
         <p>Finding best matches...</p>
       </div>
     </section>

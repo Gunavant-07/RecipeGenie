@@ -1,3 +1,5 @@
+
+from ultralytics import YOLO
 from flask import Flask, request, jsonify, render_template ,redirect, url_for
 from flask_cors import CORS
 from firebase_admin import auth
@@ -10,6 +12,10 @@ from firebase_config import database,datab
 from google.api_core.exceptions import FailedPrecondition
 import re
 import urllib.parse
+import numpy as np
+import cv2
+
+
 
 
 
@@ -19,21 +25,17 @@ CORS(app)
 # UPLOAD_FOLDER = "static/uploads"
 # os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\runs\detect\train\weights\best.pt"
+
+print("Loading YOLO model...")
+model = YOLO(MODEL_PATH)
+print("Model loaded successfully!")
+
 @app.route('/')
 @app.route('/home')
 def home():
     return render_template('index.html')
 
-# @app.route("/detect-ingredients", methods=["POST"])
-# def detect():
-
-#     file = request.files["image"]
-#     from image_detection import detect_ingredients
-#     ingredients = detect_ingredients(file)
-
-#     return jsonify({
-#         "ingredients": ingredients
-#     })
 
 @app.route("/detect-ingredients", methods=["POST"])
 def detect():
@@ -42,12 +44,44 @@ def detect():
         return jsonify({"error": "No image uploaded"}), 400
 
     file = request.files["image"]
-    from image_detection import detect_ingredients
-    ingredients = detect_ingredients(file)
+    image_bytes = file.read()
+
+    detected = detect_ingredients(image_bytes)
 
     return jsonify({
-        "ingredients": ingredients
+        "ingredients": detected
     })
+
+
+def detect_ingredients(image_bytes):
+
+    # Convert bytes → image
+    np_arr = np.frombuffer(image_bytes, np.uint8)
+    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+    if img is None:
+        return []
+
+    # Run YOLO
+    results = model(img)
+
+    detected = []
+
+    for r in results:
+        for box in r.boxes:
+
+            conf = float(box.conf[0])
+            cls_id = int(box.cls[0])
+
+            if conf > 0.4:
+                label = model.names[cls_id]
+                detected.append(label)
+
+    return list(set(detected))  # remove duplicates
+
+
+
+
     
 @app.route('/dashboard')
 def dashboard():
@@ -374,6 +408,43 @@ def get_recipes():
             'message': str(e)
         }), 500
         
+        
+
+@app.route('/recommend', methods=['POST'])
+def recommend():
+
+    ingredients_text = request.form.get("ingredients", "")
+
+    # convert string → list
+    processed = [i.strip().lower() for i in ingredients_text.split()]
+
+    recipes = datab.collection('recipes').stream()
+
+    results = []
+
+    for recipe in recipes:
+
+        data = recipe.to_dict()
+
+        recipe_ingredients = [i.lower() for i in data.get('ingredients', [])]
+
+        matched = list(set(processed) & set(recipe_ingredients))
+
+        if not matched:
+            continue
+
+        score = (len(matched) / len(recipe_ingredients)) * 100
+
+        data['matching_score'] = score
+        data['matched_ingredients'] = matched
+        data['recipe_id'] = recipe.id
+
+        results.append(data)
+
+    results = sorted(results, key=lambda x: x['matching_score'], reverse=True)
+
+    return jsonify(results[:10])
+
 # # API: Add to favorites (Realtime DB)
 @app.route('/like-recipe', methods=['POST'])
 def like_recipe():
@@ -454,8 +525,6 @@ def get_favorites(user_id):
 @app.route('/recipe-detail/<recipe_id>')
 def recipe_detail(recipe_id):
     recipe = datab.collection('recipes').document(recipe_id).get().to_dict()
-    if not recipe:
-        return "Recipe not found", 404
     return render_template('recipe.html', recipe=recipe)
 
 
@@ -499,48 +568,49 @@ def recipes_details():
 
 
 
-# recommend REcipes
 
-# @app.route('/recommend', methods=['POST'])
-# def recommend():
+# # recommend REcipes
 
-#     ingredients_text = request.form.get("ingredients","")
+# # @app.route('/recommend', methods=['POST'])
+# # def recommend():
 
-#     processed = process_ingredients(ingredients_text)
+# #     ingredients_text = request.form.get("ingredients","")
 
-#     recipes = recommend_recipes(processed)
+# #     processed = process_ingredients(ingredients_text)
 
-#     return jsonify(recipes),200
+# #     recipes = recommend_recipes(processed)
 
-def recommend_recipes(processed_ingredients):
+# #     return jsonify(recipes),200
 
-    recipes = datab.collection('recipes').stream()
+# def recommend_recipes(processed_ingredients):
 
-    results = []
+#     recipes = datab.collection('recipes').stream()
 
-    for recipe in recipes:
+#     results = []
 
-        data = recipe.to_dict()
+#     for recipe in recipes:
 
-        recipe_ingredients = [i.lower() for i in data.get('ingredients',[])]
+#         data = recipe.to_dict()
 
-        matched = list(set(processed_ingredients) & set(recipe_ingredients))
+#         recipe_ingredients = [i.lower() for i in data.get('ingredients',[])]
 
-        total = len(recipe_ingredients)
+#         matched = list(set(processed_ingredients) & set(recipe_ingredients))
 
-        if total == 0:
-            continue
+#         total = len(recipe_ingredients)
 
-        score = (len(matched) / total) * 100
+#         if total == 0:
+#             continue
 
-        data['matching_score'] = score
-        data['recipe_id'] = recipe.id
+#         score = (len(matched) / total) * 100
 
-        results.append(data)
+#         data['matching_score'] = score
+#         data['recipe_id'] = recipe.id
 
-    results = sorted(results, key=lambda x: x['matching_score'], reverse=True)
+#         results.append(data)
 
-    return results[:10]
+#     results = sorted(results, key=lambda x: x['matching_score'], reverse=True)
+
+#     return results[:10]
 
 
 @app.route('/health-report/<user_id>')

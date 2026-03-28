@@ -1,46 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dhokla - Gujarat Recipe AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-  <header>
-    <nav class="navbar">
-      <div class="logo">Gujarat Recipe AI</div>
-      <div class="hamburger"><i class="fas fa-bars"></i></div>
-      <ul class="nav-menu">
-        <li><a href="{{ url_for('home') }}">Home</a></li>
-        <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-        <li><a href="{{ url_for('recipes_page') }}">Recipes</a></li>
-        <li><a href="{{ url_for('history_page') }}">History</a></li>
-        <li><a href="{{ url_for('health_page') }}">Health Tracker</a></li>
-        <li class="login-link"><a href="{{ url_for('login_page') }}">Login</a></li>
-        <li class="register-link"><a href="{{ url_for('register_page') }}">Register</a></li>
-        <li class="logout-link" style="display:none;"><a href="{{ url_for('home') }}" id="logout">Logout</a></li>
-      </ul>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dhokla - Gujarat Recipe AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  </head>
+  <body>
+    <header>
+      <nav class="navbar">
+        <div class="logo">Gujarat Recipe AI</div>
+        <div class="hamburger">
+          <i class="fas fa-bars"></i>
+        </div>
+        <ul class="nav-menu">
+          <li>
+            <a href="{{ url_for('home') }}">Home</a>
+          </li>
+          <li>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+          </li>
+          <li>
+            <a href="{{ url_for('recipes_page') }}">Recipes</a>
+          </li>
+          <li>
+            <a href="{{ url_for('history_page') }}">History</a>
+          </li>
+          <li>
+            <a href="{{ url_for('health_page') }}">Health Tracker</a>
+          </li>
+          <li class="login-link">
+            <a href="{{ url_for('login_page') }}">Login</a>
+          </li>
+          <li class="register-link">
+            <a href="{{ url_for('register_page') }}">Register</a>
+          </li>
+          <li class="logout-link" style="display:none;">
+            <a href="{{ url_for('home') }}" id="logout">Logout</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
 
-  <section class="section">
-  <img src="/static/images/${name_of_Dish}.jpg" alt="${name_of_Dish}" style="width:100%; border-radius:15px;">
-  <h1>${name_of_Dish}</h1>
-  <span class="badge">${category}</span>
-  <p>${Description_of_Dish}</p>
-  <h2>Ingredients</h2>
-  <ul>${Ingredients_of_Dish.map(ing => `<li>${ing}</li>`).join('')}</ul>
-  <h2>Instructions</h2>
-  <ol>${Recipe_Instructions.map(step => `<li>${step}</li>`).join('')}</ol>
-  <p>Prep: ${Preparation_time} | Cook: ${Cooking_time} | Total: ${Total_time} | Serves: ${Makes}</p>
-  <p>Rating: ${Ratings_of_Dish} | Diet: ${Diet_Type} | Course: ${Course_name}</p>
-  <h3>Similar Dishes</h3>
-  <ul>${Similar_Dishes.map(dish => `<li>${dish}</li>`).join('')}</ul>
-  <button class="cooked-btn" data-recipe-id="${recipe_id}">Cooked This</button>
-</section>
-  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-</body>
+    <section class="section">
+      <img src="{{ recipe.image_url }}" style="width:100%; border-radius:15px;" />
+
+      <h1>{{ recipe.name }}</h1>
+
+      <span class="badge">{{ recipe.category }}</span>
+
+      <p>{{ recipe.description }}</p>
+
+      <h2>Ingredients</h2>
+      <ul>
+        {% for ing in recipe.ingredients %}
+          <li>{{ ing }}</li>
+        {% endfor %}
+      </ul>
+
+      <h2>Instructions</h2>
+      <ol>
+        {% for step in recipe.steps %}
+          <li>{{ step }}</li>
+        {% endfor %}
+      </ol>
+
+      <p>Prep: {{ recipe.prep_time }} | Cook: {{ recipe.cook_time }} | Total: {{ recipe.total_time }}</p>
+
+      <button class="cooked-btn" data-recipe-id="{{ recipe.recipe_id }}">Cooked This</button>
+    </section>
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
 </html>

@@ -1,229 +1,146 @@
+import os
+import shutil
+import random
+from ultralytics import YOLO
 
+# ================== PATHS ==================
+BASE_PATH = r"F:\recipeGinie web app\auto labeling\raw images"
+OUTPUT_PATH = r"F:\recipeGinie web app\train_dataset_50k"
 
-# import os
-# import shutil
-# import random
-# import time
-# from ultralytics import YOLO
+# ================== CONFIG ==================
+SPLIT_RATIO = 0.8
+IMG_SIZE = 320        # 🔥 reduce for speed
+BATCH_SIZE = 2
+EPOCHS = 10
 
-# # ================== PATHS ==================
-# BASE_PATH = r"F:\new recipeginie\images"
-# OUTPUT_PATH = r"F:\new recipeginie\dataset"
+# ================== STEP 1: READ CLASSES ==================
+print("\n📂 Reading dataset...")
 
-# # ================== STEP 1: DATASET LOG ==================
-# print("\n📂 DATASET STRUCTURE:\n")
+class_names = []
+all_data = []
 
-# total_images = 0
-# class_names = []
+for class_id, folder in enumerate(sorted(os.listdir(BASE_PATH))):
+    folder_path = os.path.join(BASE_PATH, folder)
 
-# for folder in sorted(os.listdir(BASE_PATH)):
-#     folder_path = os.path.join(BASE_PATH, folder)
+    if os.path.isdir(folder_path):
+        class_names.append(folder)
 
-#     if os.path.isdir(folder_path):
-#         count = len([f for f in os.listdir(folder_path) if f.lower().endswith(".jpg")])
-#         print(f"{folder} → {count} images")
-#         total_images += count
-#         class_names.append(folder)
+        images = [f for f in os.listdir(folder_path) if f.lower().endswith(".jpg")]
 
-# print(f"\n📊 TOTAL IMAGES: {total_images}")
+        for img in images:
+            all_data.append((os.path.join(folder_path, img), class_id))
 
-# # ================== STEP 2: CREATE FOLDERS ==================
-# for folder in ['images/train', 'images/val', 'labels/train', 'labels/val']:
-#     os.makedirs(os.path.join(OUTPUT_PATH, folder), exist_ok=True)
+print(f"📊 Total Classes: {len(class_names)}")
+print(f"📊 Total Images: {len(all_data)}")
 
-# # ================== STEP 3: PREPARE DATA ==================
-# all_data = []
+# ================== STEP 2: SHUFFLE & SPLIT ==================
+random.shuffle(all_data)
 
-# for class_id, class_name in enumerate(class_names):
-#     class_path = os.path.join(BASE_PATH, class_name)
+split_index = int(len(all_data) * SPLIT_RATIO)
 
-#     for file in os.listdir(class_path):
-#         if file.lower().endswith(".jpg"):
-#             all_data.append((os.path.join(class_path, file), class_id))
+train_data = all_data[:split_index]
+val_data = all_data[split_index:]
 
-# random.shuffle(all_data)
+print(f"📊 Train: {len(train_data)}")
+print(f"📊 Val: {len(val_data)}")
 
-# split_ratio = 0.8
-# split_index = int(len(all_data) * split_ratio)
+# ================== STEP 3: CREATE FOLDERS ==================
+for folder in ['images/train', 'images/val', 'labels/train', 'labels/val']:
+    os.makedirs(os.path.join(OUTPUT_PATH, folder), exist_ok=True)
 
-# train_data = all_data[:split_index]
-# val_data = all_data[split_index:]
+# ================== STEP 4: PROCESS ONLY IF NOT DONE ==================
+train_folder = os.path.join(OUTPUT_PATH, "images/train")
 
-# print(f"\n📊 Train Images: {len(train_data)}")
-# print(f"📊 Val Images: {len(val_data)}")
+if len(os.listdir(train_folder)) == 0:
+    print("\n⚙️ Processing dataset...")
 
-# # ================== STEP 4: RESUME-SAFE PROCESSING ==================
-# def process_data(data, split):
-#     print(f"\n📂 Processing {split.upper()} set...")
+    def process(data, split):
+        print(f"\n📂 Processing {split}...")
 
-#     progress_file = os.path.join(OUTPUT_PATH, f"progress_{split}.txt")
+        for i, (img_path, class_id) in enumerate(data):
+            file_name = os.path.basename(img_path)
 
-#     start_index = 0
-#     if os.path.exists(progress_file):
-#         with open(progress_file, "r") as f:
-#             start_index = int(f.read().strip())
-#         print(f"🔄 Resuming from index: {start_index}")
+            img_dst = os.path.join(OUTPUT_PATH, f"images/{split}", file_name)
+            label_dst = os.path.join(OUTPUT_PATH, f"labels/{split}", file_name.replace(".jpg", ".txt"))
 
-#     total = len(data)
-#     start_time = time.time()
+            if not os.path.exists(img_dst):
+                shutil.copy(img_path, img_dst)
 
-#     for i in range(start_index, total):
-#         img_path, class_id = data[i]
-#         file_name = os.path.basename(img_path)
+            if not os.path.exists(label_dst):
+                with open(label_dst, "w") as f:
+                    f.write(f"{class_id} 0.5 0.5 1.0 1.0\n")
 
-#         new_img_path = os.path.join(OUTPUT_PATH, f"images/{split}", file_name)
-#         new_label_path = os.path.join(OUTPUT_PATH, f"labels/{split}", file_name.replace(".jpg", ".txt"))
+            if (i+1) % 2000 == 0:
+                print(f"➡️ {i+1}/{len(data)} done")
 
-#         try:
-#             if not (os.path.exists(new_img_path) and os.path.exists(new_label_path)):
-#                 shutil.copy(img_path, new_img_path)
+    process(train_data, "train")
+    process(val_data, "val")
 
-#                 with open(new_label_path, "w") as f:
-#                     f.write(f"{class_id} 0.5 0.5 1.0 1.0\n")
+else:
+    print("\n✅ Dataset already processed. Skipping...")
 
-#             # Save progress
-#             if i % 100 == 0:
-#                 with open(progress_file, "w") as f:
-#                     f.write(str(i))
+# ================== STEP 5: CREATE YAML ==================
+yaml_path = os.path.join(OUTPUT_PATH, "dataset.yaml")
 
-#             # Logs
-#             if (i + 1) % 500 == 0 or (i + 1) == total:
-#                 percent = ((i + 1) / total) * 100
-#                 print(f"📊 {split.upper()} Progress: {percent:.2f}% ({i+1}/{total})")
+with open(yaml_path, "w") as f:
+    f.write(f"path: {OUTPUT_PATH}\n")
+    f.write("train: images/train\n")
+    f.write("val: images/val\n\n")
+    f.write("names:\n")
 
-#         except KeyboardInterrupt:
-#             print("\n⛔ Stopped manually!")
-#             with open(progress_file, "w") as f:
-#                 f.write(str(i))
-#             return
+    for i, name in enumerate(class_names):
+        f.write(f"  {i}: {name}\n")
 
-#     print(f"✅ {split.upper()} COMPLETED")
+print("\n✅ dataset.yaml created")
 
-#     if os.path.exists(progress_file):
-#         os.remove(progress_file)
+# ================== STEP 6: TRAIN (RESUME SAFE) ==================
+print("\n🚀 Starting Training...")
 
-# # ▶️ RUN PROCESSING
-# process_data(train_data, "train")
-# process_data(val_data, "val")
+RUNS_DIR = r"E:\RecipeGenie\RecipeGenie\runs\detect"
 
-# # ================== STEP 4.1: SKIP IF ALREADY PROCESSED ==================
-# train_folder = os.path.join(OUTPUT_PATH, "images/train")
-# val_folder = os.path.join(OUTPUT_PATH, "images/val")
+def get_last_checkpoint():
+    if not os.path.exists(RUNS_DIR):
+        return None
 
-# if len(os.listdir(train_folder)) == 0 or len(os.listdir(val_folder)) == 0:
-#     print("\n⚙️ Dataset not found. Processing now...")
+    folders = [f for f in os.listdir(RUNS_DIR) if f.startswith("train")]
+    folders.sort(reverse=True)
 
-#     process_data(train_data, "train")
-#     process_data(val_data, "val")
+    for folder in folders:
+        ckpt = os.path.join(RUNS_DIR, folder, "weights", "last.pt")
+        if os.path.exists(ckpt):
+            return ckpt
+    return None
 
-# else:
-#     print("\n✅ Dataset already processed. Skipping preprocessing step.")
+last_ckpt = get_last_checkpoint()
 
-# # ================== STEP 5: CREATE YAML ==================
-# yaml_path = os.path.join(OUTPUT_PATH, "dataset.yaml")
+# 🔁 RESUME
+if last_ckpt:
+    print(f"🔄 Resuming from: {last_ckpt}")
+    model = YOLO(last_ckpt)
 
-# with open(yaml_path, "w") as f:
-#     f.write(f"path: {OUTPUT_PATH}\n")
-#     f.write("train: images/train\n")
-#     f.write("val: images/val\n\n")
-#     f.write("names:\n")
+    model.train(
+        resume=True,
+        epochs=EPOCHS,
+        imgsz=IMG_SIZE,
+        batch=BATCH_SIZE,
+        device="cpu",
+        workers=0,
+        cache=True
+    )
 
-#     for i, name in enumerate(class_names):
-#         f.write(f"  {i}: {name}\n")
+# 🆕 NEW TRAIN
+else:
+    print("🆕 Starting fresh training...")
+    model = YOLO("yolo11s.pt")
 
-# print("\n✅ dataset.yaml created")
+    model.train(
+        data=yaml_path,
+        epochs=EPOCHS,
+        imgsz=IMG_SIZE,
+        batch=BATCH_SIZE,
+        device="cpu",
+        workers=0,
+        cache=True
+    )
 
-# # ================== STEP 6: TRAIN WITH EPOCH PROGRESS ==================
-# print("\n🚀 STARTING TRAINING WITH CHECKPOINT SYSTEM...")
-
-# RUNS_DIR = r"E:\RecipeGenie\RecipeGenie\runs\detect"
-
-# def get_last_checkpoint():
-#     if not os.path.exists(RUNS_DIR):
-#         return None
-
-#     folders = [f for f in os.listdir(RUNS_DIR) if f.startswith("train")]
-#     if not folders:
-#         return None
-
-#     folders.sort(reverse=True)
-
-#     for folder in folders:
-#         ckpt_path = os.path.join(RUNS_DIR, folder, "weights", "last.pt")
-#         if os.path.exists(ckpt_path):
-#             return ckpt_path
-
-#     return None
-
-# last_ckpt = get_last_checkpoint()
-
-# # 🔁 RESUME TRAINING
-# if last_ckpt:
-#     print(f"🔄 Resuming from checkpoint: {last_ckpt}")
-
-#     model = YOLO(last_ckpt)
-
-#     model.train(
-#         resume=True,
-#         epochs=20,
-#         imgsz=416,
-#         batch=2,
-#         device="cpu",
-#         workers=0,
-#         cache=True,
-#         save=True,
-#         verbose=True
-#     )
-
-# # 🆕 NEW TRAINING
-# else:
-#     print("🆕 Starting fresh training...")
-
-#     model = YOLO("yolo11s.pt")
-
-#     model.train(
-#         data=yaml_path,
-#         epochs=20,
-#         imgsz=416,
-#         batch=2,
-#         device="cpu",
-#         workers=0,
-#         cache=True,
-#         save=True,
-#         verbose=True
-#     )
-
-# print("\n🎉 TRAINING COMPLETED!")
-
-# EPOCHS = 20
-# model = YOLO("yolo11s.pt")
-
-# start_training = time.time()
-
-# for epoch in range(EPOCHS):
-#     print(f"\n🔥 Epoch {epoch+1}/{EPOCHS} STARTED")
-
-#     epoch_start = time.time()
-
-#     model.train(
-#         data=yaml_path,
-#         epochs=1,            # run one epoch at a time
-#         imgsz=640,
-#         batch=4,
-#         device='cpu',
-#         verbose=False
-#     )
-
-#     epoch_time = time.time() - epoch_start
-#     total_time = time.time() - start_training
-
-#     percent = ((epoch + 1) / EPOCHS) * 100
-
-#     print(f"✅ Epoch {epoch+1} Completed")
-#     print(f"📊 Progress: {percent:.2f}%")
-#     print(f"⏱️ Epoch Time: {epoch_time/60:.2f} min")
-#     print(f"⏳ Total Time: {total_time/60:.2f} min")
-
-# print("\n🎉 TRAINING COMPLETED!")
-
-# print("\n🎉 DONE!")
+print("\n🎉 TRAINING COMPLETED!")

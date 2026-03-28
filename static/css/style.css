@@ -100,7 +100,7 @@ a { text-decoration: none; color: inherit; }
 .primary:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(255,153,51,0.4); }
 
 .hero {
-  height: 80vh;
+  height: 60vh;
   background: url('https://thumbs.dreamstime.com/b/traditional-indian-gujarati-thali-features-variety-dishes-naan-round-metal-platter-traditional-indian-thali-397583806.jpg') center/cover no-repeat;
   display: flex;
   flex-direction: column;

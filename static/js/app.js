@@ -261,9 +261,9 @@ if (findBtn) {
     const formData = new FormData();
     formData.append('ingredients', ingredients.join(' '));
 
-    if (imageInput.files[0]) {
-      formData.append('image', imageInput.files[0]);
-    }
+    // if (imageInput.files[0]) {
+    //   formData.append('image', imageInput.files[0]);
+    // }
 
     const uid = localStorage.getItem('uid');
     if (uid) {
@@ -390,85 +390,218 @@ let isLoading = false;
 let hasMore = true;
 
 // Create a single recipe card
+// function createRecipeCard(recipe) {
+//   const card = document.createElement('div');
+//   // const imgpath = https://recipe-images.edgeone.app/Kesar_Peda_Recipe_14_400x320.jpg
+//   //  <img src="/static/images/${recipe.name.replace(/ /g, '_')}.jpg" alt="${recipe.name}" 
+//   //        onerror="this.src='https://via.placeholder.com/300x180?text=${encodeURIComponent(recipe.name)}'"></img>
+//   card.classList.add('recipe-card');
+//   card.innerHTML = `
+//     <img src="${recipe.image_url}" alt="${recipe.name}" 
+//          onerror="this.src='https://recipesimages.edgeone.app/default.jpg?text=${encodeURIComponent(recipe.name)}'">
+//     <h3>${recipe.name}</h3>
+//     <span class="badge ${recipe.category?.toLowerCase() || 'moderate'}">${recipe.category || 'Moderate'}</span>
+//     <p>Rating: ${recipe.ratings || 'N/A'}</p>
+//     <div class="buttons">
+//       <button class="like-btn ${recipe.isFavorite ? 'liked' : ''}" data-recipe-id="${recipe.recipe_id}">
+//         <i class="fas fa-heart"></i> ${recipe.isFavorite ? 'Liked' : 'Like'}
+//       </button>
+//       <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">Cook This</a>
+//     </div>
+//   `;
+//   return card;
+// }
+
 function createRecipeCard(recipe) {
+
   const card = document.createElement('div');
-  // const imgpath = https://recipe-images.edgeone.app/Kesar_Peda_Recipe_14_400x320.jpg
-  //  <img src="/static/images/${recipe.name.replace(/ /g, '_')}.jpg" alt="${recipe.name}" 
-  //        onerror="this.src='https://via.placeholder.com/300x180?text=${encodeURIComponent(recipe.name)}'"></img>
   card.classList.add('recipe-card');
+
   card.innerHTML = `
-    <img src="${recipe.image_url}" alt="${recipe.name}" 
-         onerror="this.src='https://recipesimages.edgeone.app/default.jpg?text=${encodeURIComponent(recipe.name)}'">
+    <img src="${recipe.image_url}" alt="${recipe.name}">
     <h3>${recipe.name}</h3>
-    <span class="badge ${recipe.category?.toLowerCase() || 'moderate'}">${recipe.category || 'Moderate'}</span>
-    <p>Rating: ${recipe.ratings || 'N/A'}</p>
+
+    <p><b>Ingredients:</b></p>
+    <ul>
+    ${
+      Array.isArray(recipe.ingredients)
+        ? recipe.ingredients.map(i => `<li>${i}</li>`).join("")
+        : (typeof recipe.ingredients === "string"
+            ? [recipe.ingredients].map(i => `<li>${i}</li>`).join("")
+            : "<li>No ingredients</li>")
+    }
+    </ul>
+
+    <p><b>Matched:</b> ${
+      Array.isArray(recipe.matched_ingredients)
+        ? recipe.matched_ingredients.join(", ")
+        : "None"
+    }</p>
+
     <div class="buttons">
-      <button class="like-btn ${recipe.isFavorite ? 'liked' : ''}" data-recipe-id="${recipe.recipe_id}">
-        <i class="fas fa-heart"></i> ${recipe.isFavorite ? 'Liked' : 'Like'}
-      </button>
-      <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">Cook This</a>
+      <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">
+        View Recipe
+      </a>
     </div>
   `;
+
   return card;
 }
 
 // Load recipes with pagination
+// async function loadRecipes(reset = false) {
+//   if (isLoading || !hasMore) return;
+//   isLoading = true;
+
+//   const loading = document.getElementById('loading');
+//   const noMore = document.getElementById('no-more');
+
+//   if (loading) loading.style.display = 'block';
+//   if (noMore) noMore.style.display = 'none';
+
+//   const search = document.getElementById('search-input')?.value || '';
+//   const state = document.getElementById('state-select')?.value || 'All';
+//   const highRated = document.getElementById('high-rated')?.checked || false;
+
+//   let url = `/get-recipes?state=${encodeURIComponent(state)}&search=${encodeURIComponent(search)}&high_rated=${highRated}&limit=50`;
+//   if (!reset && lastRecipeId) {
+//     url += `&last_doc_id=${encodeURIComponent(lastRecipeId)}`;
+//   }
+
+ 
+//   try {
+//     const res = await fetch(url);
+//     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+//     const data = await res.json();
+
+//     console.log("Received from /get-recipes:", data);
+
+//     const grid = document.querySelector('.recipe-grid');
+
+//     if (grid) {
+//       grid.innerHTML += `
+//       <p style="color:red; text-align:center;">
+//         Error loading recipes. Please try again.
+//       </p>
+//       `;
+//     }
+//     if (reset) {
+//       grid.innerHTML = '';
+//       lastRecipeId = null;
+//       hasMore = true;
+//     }
+
+//     data.recipes.forEach(recipe => {
+//       grid.appendChild(createRecipeCard(recipe));
+//     });
+
+//     lastRecipeId = data.last_doc_id;
+//     hasMore = data.has_more === true;
+
+//     if (!hasMore && grid.children.length === 0) {
+//       grid.innerHTML = '<p style="text-align:center; padding:3rem;">No recipes found matching your criteria.</p>';
+//     } else if (!hasMore) {
+//       noMore.style.display = 'block';
+//     }
+
+//   } catch (err) {
+//     console.error('Error loading recipes:', err);
+//     document.querySelector('.recipe-grid').innerHTML += '<p style="color:red; text-align:center;">Error loading recipes. Please try again.</p>';
+//   } finally {
+//     isLoading = false;
+//     if (loading) loading.style.display = 'none';
+//   }
+// }
+
+// ==================================
+
 async function loadRecipes(reset = false) {
+
+  // Prevent multiple calls
   if (isLoading || !hasMore) return;
   isLoading = true;
 
+  // Get UI elements safely
   const loading = document.getElementById('loading');
   const noMore = document.getElementById('no-more');
-  loading.style.display = 'block';
-  noMore.style.display = 'none';
+  const grid = document.querySelector('.recipe-grid');
 
+  // Show loading
+  if (loading) loading.style.display = 'block';
+  if (noMore) noMore.style.display = 'none';
+
+  // Get filters
   const search = document.getElementById('search-input')?.value || '';
   const state = document.getElementById('state-select')?.value || 'All';
   const highRated = document.getElementById('high-rated')?.checked || false;
 
+  // Build URL
   let url = `/get-recipes?state=${encodeURIComponent(state)}&search=${encodeURIComponent(search)}&high_rated=${highRated}&limit=50`;
+
   if (!reset && lastRecipeId) {
     url += `&last_doc_id=${encodeURIComponent(lastRecipeId)}`;
   }
 
- 
   try {
+
+    // ✅ FETCH API (IMPORTANT FIX)
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
 
     const data = await res.json();
 
-    console.log("Received from /get-recipes:", data);
+    console.log("API DATA:", data);
 
-    const grid = document.querySelector('.recipe-grid');
-
-    if (reset) {
+    // Reset grid if needed
+    if (reset && grid) {
       grid.innerHTML = '';
       lastRecipeId = null;
       hasMore = true;
     }
 
-    data.recipes.forEach(recipe => {
-      grid.appendChild(createRecipeCard(recipe));
-    });
+    // Append recipes safely
+    if (data.recipes && Array.isArray(data.recipes)) {
+      data.recipes.forEach(recipe => {
+        grid.appendChild(createRecipeCard(recipe));
+      });
+    }
 
-    lastRecipeId = data.last_doc_id;
+    // Pagination update
+    lastRecipeId = data.last_doc_id || null;
     hasMore = data.has_more === true;
 
-    if (!hasMore && grid.children.length === 0) {
-      grid.innerHTML = '<p style="text-align:center; padding:3rem;">No recipes found matching your criteria.</p>';
-    } else if (!hasMore) {
+    // No more data
+    if (!hasMore && grid && grid.children.length === 0) {
+      grid.innerHTML = '<p style="text-align:center;">No recipes found</p>';
+    } else if (!hasMore && noMore) {
       noMore.style.display = 'block';
     }
 
   } catch (err) {
+
     console.error('Error loading recipes:', err);
-    document.querySelector('.recipe-grid').innerHTML += '<p style="color:red; text-align:center;">Error loading recipes. Please try again.</p>';
+
+    if (grid) {
+      grid.innerHTML += `
+        <p style="color:red; text-align:center;">
+          Error loading recipes. Please try again.
+        </p>
+      `;
+    }
+
   } finally {
+
     isLoading = false;
-    loading.style.display = 'none';
+
+    if (loading) loading.style.display = 'none';
   }
 }
+
+// =======================
 
 async function loadHealthReport(){
 
@@ -491,6 +624,9 @@ document.getElementById("health-progress").style.width =
 Math.min(100,Math.max(0,data.health_score*5))+"%"
 
 }
+
+console.log(document.getElementById("recipes-container"));
+console.log(document.getElementById("favorites-container"));
 
 // Load favorites
 async function loadFavorites() {
@@ -559,6 +695,69 @@ async function loadFavorites() {
 
 // }
 
+async function captureImage() {
+
+    const video = document.getElementById("camera");
+    const canvas = document.getElementById("canvas");
+    const resultsDiv = document.getElementById("detected-results");
+
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video, 0, 0);
+
+    canvas.toBlob(async function(blob) {
+
+        const formData = new FormData();
+        formData.append("image", blob, "capture.jpg");
+
+        const res = await fetch("/detect-ingredients", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        resultsDiv.innerHTML = "";
+
+        if (!data.ingredients.length) {
+            resultsDiv.innerHTML = "No ingredients detected";
+            return;
+        }
+
+        data.ingredients.forEach(item => {
+
+            const p = document.createElement("p");
+            p.innerText = "📸 " + item;
+
+            resultsDiv.appendChild(p);
+
+        });
+
+    });
+}
+
+async function startCamera() {
+
+    const video = document.getElementById("camera");
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true
+        });
+
+        video.srcObject = stream;
+
+    } catch (err) {
+        alert("Camera access denied");
+    }
+}
+
+window.captureImage = captureImage;
+window.startCamera = startCamera;
+
 function detectIngredients() {
 
     const imageUpload = document.getElementById("imageUpload");
@@ -576,7 +775,7 @@ function detectIngredients() {
         method: "POST",
         body: formData
     })
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
 
         resultsDiv.innerHTML = "";
@@ -589,20 +788,63 @@ function detectIngredients() {
         data.ingredients.forEach(item => {
 
             const p = document.createElement("p");
-            p.innerText = item.ingredient + " (" + item.confidence.toFixed(2) + ")";
+
+            p.innerText = "🍅 " + item;
 
             resultsDiv.appendChild(p);
 
         });
 
     })
-    .catch(error => {
-        console.error("Error:", error);
-    });
-
+    .catch(err => console.error(err));
 }
 
 window.detectIngredients = detectIngredients;
+
+// function detectIngredients() {
+
+//     const imageUpload = document.getElementById("imageUpload");
+//     const resultsDiv = document.getElementById("detected-results");
+
+//     if (!imageUpload.files.length) {
+//         alert("Please upload an image first");
+//         return;
+//     }
+
+//     const formData = new FormData();
+//     formData.append("image", imageUpload.files[0]);
+
+//     fetch("/detect-ingredients", {
+//         method: "POST",
+//         body: formData
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+
+//         resultsDiv.innerHTML = "";
+
+//         if (!data.ingredients || data.ingredients.length === 0) {
+//             resultsDiv.innerHTML = "No ingredients detected";
+//             return;
+//         }
+
+//         data.ingredients.forEach(item => {
+
+//             const p = document.createElement("p");
+//             p.innerText = item.ingredient + " (" + item.confidence.toFixed(2) + ")";
+
+//             resultsDiv.appendChild(p);
+
+//         });
+
+//     })
+//     .catch(error => {
+//         console.error("Error:", error);
+//     });
+
+// }
+
+// window.detectIngredients = detectIngredients;
 
 const startCameraBtn = document.getElementById("startCamera");
 const captureBtn = document.getElementById("captureBtn");
@@ -621,26 +863,26 @@ let stream;
 START CAMERA
 --------------------------*/
 
-startCameraBtn.addEventListener("click", async () => {
+// startCameraBtn.addEventListener("click", async () => {
 
-    try {
+//     try {
 
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: true
-        });
+//         stream = await navigator.mediaDevices.getUserMedia({
+//             video: true
+//         });
 
-        video.srcObject = stream;
+//         video.srcObject = stream;
 
-        video.style.display = "block";
-        captureBtn.style.display = "inline-block";
+//         video.style.display = "block";
+//         captureBtn.style.display = "inline-block";
 
-    } catch (err) {
+//     } catch (err) {
 
-        alert("Camera access denied");
+//         alert("Camera access denied");
 
-    }
+//     }
 
-});
+// });
 
 
 
@@ -648,37 +890,37 @@ startCameraBtn.addEventListener("click", async () => {
 CAPTURE IMAGE
 --------------------------*/
 
-captureBtn.addEventListener("click", async () => {
+// captureBtn.addEventListener("click", async () => {
 
-    const ctx = canvas.getContext("2d");
+//     const ctx = canvas.getContext("2d");
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+//     canvas.width = video.videoWidth;
+//     canvas.height = video.videoHeight;
 
-    ctx.drawImage(video, 0, 0);
-
-
-    canvas.toBlob(async function(blob) {
-
-        const formData = new FormData();
-
-        formData.append("image", blob, "capture.jpg");
+//     ctx.drawImage(video, 0, 0);
 
 
-        const res = await fetch("/detect-ingredients", {
+//     canvas.toBlob(async function(blob) {
 
-            method: "POST",
-            body: formData
+//         const formData = new FormData();
 
-        });
+//         formData.append("image", blob, "capture.jpg");
 
-        const data = await res.json();
 
-        displayResults(data.ingredients);
+//         const res = await fetch("/detect-ingredients", {
 
-    });
+//             method: "POST",
+//             body: formData
 
-});
+//         });
+
+//         const data = await res.json();
+
+//         displayResults(data.ingredients);
+
+//     });
+
+// });
 
 
 
@@ -686,28 +928,28 @@ captureBtn.addEventListener("click", async () => {
 UPLOAD IMAGE
 --------------------------*/
 
-detectBtn.addEventListener("click", async () => {
+// detectBtn.addEventListener("click", async () => {
 
-    if (imageUpload.files.length === 0) {
-        alert("Please select image");
-        return;
-    }else{
-      const formData = new FormData();
-      formData.append("image", imageUpload.files[0]);
+//     if (imageUpload.files.length === 0) {
+//         alert("Please select image");
+//         return;
+//     }else{
+//       const formData = new FormData();
+//       formData.append("image", imageUpload.files[0]);
 
-      const res = await fetch("/detect-ingredients", {
-        method: "POST",
-        body: formData
-      });
+//       const res = await fetch("/detect-ingredients", {
+//         method: "POST",
+//         body: formData
+//       });
 
-      const data = await res.json();
+//       const data = await res.json();
 
-      displayResults(data.ingredients);
-    }
+//       displayResults(data.ingredients);
+//     }
 
     
 
-});
+// });
 
 
 
@@ -763,10 +1005,23 @@ View Recipe
 // }
 //
 // Infinite scroll trigger
+let scrollTimeout;
+
 window.addEventListener('scroll', () => {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
-    loadRecipes(); // load next page
-  }
+
+  if (scrollTimeout) return;
+
+  scrollTimeout = setTimeout(() => {
+
+    if (!isLoading && hasMore &&
+        (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300)) {
+      loadRecipes();
+    }
+
+    scrollTimeout = null;
+
+  }, 200);
+
 });
 
 // Filter events
@@ -813,7 +1068,7 @@ document.addEventListener('click', async e => {
 document.addEventListener('DOMContentLoaded', () => {
   
     loadRecipes(true);
-    loadFavorites();
+    // loadFavorites();
 
 });
 
