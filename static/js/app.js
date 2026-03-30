@@ -206,30 +206,168 @@ if ('serviceWorker' in navigator) {
 // Ingredient tags
 const ingredientInput = document.getElementById('ingredient');
 const tagsContainer = document.getElementById('tags-container');
+const ingredientCounter = document.getElementById('ingredient-counter');
+const selectedIngredientsPreview = document.getElementById('selected-ingredients-preview');
 const addBtn = document.getElementById('add-ingredient');
 const findBtn = document.getElementById('find-recipes');
+const imageDetectBtn = document.getElementById('detect-image-ingredients');
+const loadingChip = document.getElementById('ingredient-search-loading');
 
-function addTag(text = ingredientInput.value.trim()) {
-  if (!text) return;
-  const tag = document.createElement('span');
-  tag.classList.add('tag');
-  tag.innerHTML = `${text} <i class="fas fa-times"></i>`;
-  tag.querySelector('i').addEventListener('click', () => tag.remove());
-  tagsContainer.appendChild(tag);
-  ingredientInput.value = '';
+function normalizeIngredient(value = '') {
+  return String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-if (addBtn) addBtn.addEventListener('click', () => addTag());
-if (ingredientInput) ingredientInput.addEventListener('keypress', e => { if (e.key === 'Enter') addTag(); });
+function formatIngredient(value = '') {
+  return normalizeIngredient(value)
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function getSelectedIngredients() {
+  if (!tagsContainer) return [];
+
+  return Array.from(tagsContainer.querySelectorAll('.tag'))
+    .map(tag => tag.dataset.ingredient || '')
+    .filter(Boolean);
+}
+
+function updateIngredientSummary() {
+  const selected = getSelectedIngredients();
+
+  if (ingredientCounter) {
+    ingredientCounter.textContent = `${selected.length} ingredient${selected.length === 1 ? '' : 's'} selected`;
+  }
+
+  if (selectedIngredientsPreview) {
+    selectedIngredientsPreview.textContent = selected.length
+      ? `Selected ingredients: ${selected.map(formatIngredient).join(', ')}`
+      : 'No ingredients selected yet.';
+  }
+}
+
+function setDetectedMessage(message) {
+  const resultsDiv = document.getElementById('detected-results');
+  if (resultsDiv) {
+    resultsDiv.textContent = message;
+  }
+}
+
+function addTag(text = ingredientInput?.value?.trim() || '') {
+  const normalized = normalizeIngredient(text);
+  if (!normalized || !tagsContainer) return false;
+
+  const exists = getSelectedIngredients().includes(normalized);
+  if (exists) {
+    if (ingredientInput) ingredientInput.value = '';
+    return false;
+  }
+
+  const tag = document.createElement('span');
+  tag.classList.add('tag');
+  tag.dataset.ingredient = normalized;
+  tag.innerHTML = `
+    <span>${formatIngredient(normalized)}</span>
+    <button type="button" aria-label="Remove ingredient">
+      <i class="fas fa-times"></i>
+    </button>
+  `;
+
+  tag.querySelector('button').addEventListener('click', () => {
+    tag.remove();
+    updateIngredientSummary();
+  });
+
+  tagsContainer.appendChild(tag);
+
+  if (ingredientInput) ingredientInput.value = '';
+  updateIngredientSummary();
+  return true;
+}
+
+function addTagsFromText(text = '') {
+  return String(text)
+    .split(/[,;\n]+/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => addTag(item))
+    .map(item => formatIngredient(item));
+}
+
+function addDetectedIngredients(items = [], sourceLabel = 'Image') {
+  const added = [];
+
+  items.forEach(item => {
+    if (addTag(item)) {
+      added.push(formatIngredient(item));
+    }
+  });
+
+  if (!items.length) {
+    setDetectedMessage(`No ingredients detected from ${sourceLabel.toLowerCase()}.`);
+    return;
+  }
+
+  if (added.length) {
+    setDetectedMessage(`${sourceLabel} detected and added: ${added.join(', ')}`);
+  } else {
+    setDetectedMessage(`${sourceLabel} detected ingredients, but they are already in the ingredient bar.`);
+  }
+}
+
+if (addBtn) addBtn.addEventListener('click', () => {
+  const added = addTagsFromText(ingredientInput?.value || '');
+  if (added.length) {
+    setDetectedMessage(`Added to ingredient bar: ${added.join(', ')}`);
+  }
+  if (ingredientInput) ingredientInput.value = '';
+});
+if (ingredientInput) ingredientInput.addEventListener('keypress', e => {
+  if (e.key === 'Enter') {
+    const added = addTagsFromText(ingredientInput.value);
+    if (added.length) {
+      setDetectedMessage(`Added to ingredient bar: ${added.join(', ')}`);
+    }
+    ingredientInput.value = '';
+  }
+});
+updateIngredientSummary();
 
 // Voice Input
-const micBtn = document.querySelector('.mic');
+const micBtn = document.getElementById('voice-ingredient') || document.querySelector('.mic');
 if (micBtn) {
-  micBtn.addEventListener('click', () => {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.onresult = e => addTag(e.results[0][0].transcript);
-    recognition.start();
-  });
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    micBtn.disabled = true;
+    micBtn.title = 'Voice input is not supported in this browser';
+  } else {
+    micBtn.addEventListener('click', () => {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-IN';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = e => {
+        const transcript = e.results?.[0]?.[0]?.transcript || '';
+        const added = addTagsFromText(transcript);
+        setDetectedMessage(
+          added.length
+            ? `Voice added: ${added.join(', ')}`
+            : 'Voice ingredient was already in the ingredient bar.'
+        );
+      };
+      recognition.onerror = () => {
+        setDetectedMessage('Voice input failed. Please try again or type the ingredient manually.');
+      };
+      recognition.start();
+    });
+  }
 }
 
 // Image Upload
@@ -244,79 +382,71 @@ if (micBtn) {
 // Find Recipes
 if (findBtn) {
   findBtn.addEventListener('click', async () => {
-
-    // Collect ingredients from tags
-    const ingredients = Array.from(tagsContainer.querySelectorAll('.tag'))
-      .map(tag => tag.textContent.replace('×','').trim());
-
-    console.log("Finding recipes with ingredients:", ingredients);
+    const ingredients = getSelectedIngredients();
+    const recipeDemand = document.getElementById('recipe-demand')?.value || '';
 
     if (ingredients.length === 0) {
       alert("Please add ingredients first");
       return;
     }
 
-    document.querySelector('.loading').style.display = 'block';
-
-    const formData = new FormData();
-    formData.append('ingredients', ingredients.join(' '));
-
-    // if (imageInput.files[0]) {
-    //   formData.append('image', imageInput.files[0]);
-    // }
-
-    const uid = localStorage.getItem('uid');
-    if (uid) {
-      formData.append('user_id', uid);
+    if (loadingChip) {
+      loadingChip.style.display = 'inline-flex';
     }
 
     try {
-
       const res = await fetch('/recommend', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients,
+          query: recipeDemand
+        })
       });
 
-      const recs = await res.json();
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
 
-      console.log("Recipes received:", recs);
+      const payload = await res.json();
+      const recs = Array.isArray(payload.recipes) ? payload.recipes : [];
 
       const grid = document.querySelector('.recipe-grid');
       grid.innerHTML = '';
 
-      recs.forEach(recipe => {
+      if (!recs.length) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <h3>No recipe matched your ingredient bar.</h3>
+            <p>Try fewer ingredients or detect another ingredient from image or camera.</p>
+          </div>
+        `;
+      } else {
+        recs.forEach(recipe => {
+          const card = createRecipeCard(recipe);
+          grid.appendChild(card);
+        });
+      }
 
-        const card = createRecipeCard(recipe);
-        grid.appendChild(card);
-
-        if (recipe.status === 'show_missing') {
-
-          const modal = document.createElement('div');
-
-          modal.style.position = 'fixed';
-          modal.style.top = '50%';
-          modal.style.left = '50%';
-          modal.style.transform = 'translate(-50%, -50%)';
-          modal.style.background = 'white';
-          modal.style.padding = '20px';
-          modal.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-
-          modal.innerHTML = `
-            Missing ingredients: ${recipe.missing.join(', ')}
-            <br><br>
-            <button onclick="this.parentNode.remove()">Close</button>
-          `;
-
-          document.body.appendChild(modal);
-        }
-
-      });
+      const resultsSummary = document.getElementById('results-summary');
+      if (resultsSummary) {
+        const preferredHealth = payload.demand_profile?.preferred_health;
+        resultsSummary.textContent = recs.length
+          ? `${recs.length} filtered recipe${recs.length === 1 ? '' : 's'} found from Firebase.${preferredHealth ? ` Preference matched: ${preferredHealth}.` : ''}`
+          : 'No Firebase recipes were found for the selected ingredients.';
+      }
 
     } catch (error) {
       console.error("Recommendation error:", error);
+      const resultsSummary = document.getElementById('results-summary');
+      if (resultsSummary) {
+        resultsSummary.textContent = 'There was a problem loading filtered recipes from Firebase.';
+      }
     }
 
-    document.querySelector('.loading').style.display = 'none';
+    if (loadingChip) {
+      loadingChip.style.display = 'none';
+    }
 
   });
 }
@@ -342,13 +472,74 @@ document.addEventListener('click', async e => {
   if (e.target.classList.contains('cooked-btn')) {
     const uid = localStorage.getItem('uid');
     const recipeId = e.target.dataset.recipeId;
-    if (uid && recipeId) {
-      await fetch('/cooked', {
+    if (!uid) {
+      alert('Please login first so RecipeGenie can save your meal to dashboard and health tracker.');
+      return;
+    }
+
+    if (!recipeId) {
+      alert('Recipe information is missing. Please reload and try again.');
+      return;
+    }
+
+    const cookButton = e.target;
+    cookButton.disabled = true;
+    cookButton.textContent = 'Saving...';
+
+    try {
+      const response = await fetch('/cooked', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: uid, recipe_id: recipeId })
       });
-      location.reload();
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || payload.message || `HTTP ${response.status}`);
+      }
+
+      const feedbackBox = document.getElementById('cook-feedback');
+      const recommendationBox = document.getElementById('healthy-recommendations');
+
+      if (feedbackBox) {
+        feedbackBox.style.display = 'block';
+        feedbackBox.innerHTML = `
+          <h3 style="margin-bottom:0.6rem;">Meal saved to your tracker</h3>
+          <p><strong>Status:</strong> ${payload.health_label || 'Moderate'}</p>
+          <p><strong>Health score:</strong> ${payload.health_score || 0}/100</p>
+          <p><strong>Calories:</strong> ${payload.nutrition?.calories || 0} kcal</p>
+          <p><strong>Protein:</strong> ${payload.nutrition?.protein || 0} g</p>
+          <p><strong>Fiber:</strong> ${payload.nutrition?.fiber || 0} g</p>
+          <p><strong>Notes:</strong> ${(payload.nutrition_notes || []).join(', ') || 'Nutrition data saved'}</p>
+          ${payload.notification ? `<p style="color:#c62828; margin-top:0.6rem;"><strong>Warning:</strong> ${payload.notification}</p>` : '<p style="margin-top:0.6rem; color:var(--secondary);"><strong>Good:</strong> Dashboard and health tracker updated successfully.</p>'}
+        `;
+      }
+
+      if (recommendationBox) {
+        if (Array.isArray(payload.recommendations) && payload.recommendations.length) {
+          recommendationBox.style.display = 'block';
+          recommendationBox.innerHTML = `
+            <h3 style="margin-bottom:0.8rem;">Healthy recipes for your next meal</h3>
+            ${payload.recommendations.map(recipe => `
+              <p style="margin-bottom:0.6rem;">
+                <a href="/recipe-detail/${recipe.recipe_id}"><strong>${recipe.name}</strong></a><br>
+                <span style="color:var(--gray);">${recipe.reason}</span>
+              </p>
+            `).join('')}
+          `;
+        } else {
+          recommendationBox.style.display = 'none';
+        }
+      }
+
+      cookButton.textContent = 'Saved To Tracker';
+      loadDashboardReport();
+      loadHealthReport();
+    } catch (error) {
+      alert(`Unable to save cooked recipe: ${error.message}`);
+      cookButton.disabled = false;
+      cookButton.textContent = 'Cooked This';
     }
   }
 });
@@ -360,21 +551,38 @@ if (location.pathname.includes('history')) {
     if (uid) {
       const res = await fetch(`/history/${uid}`);
       const hist = await res.json();
-      const container = document.querySelector('.history-container') || document.createElement('div');
-      container.classList.add('history-container');
+      const container = document.querySelector('.history-container') || document.getElementById('history-list');
+      if (!container) return;
+
       container.innerHTML = '';
+
+      if (!hist.length) {
+        container.innerHTML = '<div class="history-empty">Cook a recipe to start building your cooking history.</div>';
+        return;
+      }
+
       hist.forEach(item => {
+        const recipe = item.recipe || {};
+        const healthType = recipe.health_label || recipe.category || 'Moderate';
         const div = document.createElement('div');
-        div.classList.add('history-item');
+        div.classList.add('history-card');
         div.innerHTML = `
-          <h3>${item.recipe.name}</h3>
-          <p>Date: ${new Date(item.date).toLocaleDateString()}</p>
-          <span class="badge ${item.recipe.category.toLowerCase()}">${item.recipe.category}</span>
-          <button class="btn primary cooked-btn" data-recipe-id="${item.recipe_id}">Cook Again</button>
+          <img src="${recipe.image_url || 'https://recipesimages.edgeone.app/default.jpg'}" alt="${recipe.name || 'Recipe'}" onerror="this.src='https://recipesimages.edgeone.app/default.jpg'">
+          <div class="history-card-body">
+            <div class="history-meta">
+              <span>${item.date ? new Date(item.date).toLocaleDateString() : 'Recently cooked'}</span>
+              <span class="badge ${healthType.toLowerCase().replace(/\s+/g, '-')}">${healthType}</span>
+            </div>
+            <h3 style="margin-bottom:0.45rem; color:var(--secondary);">${recipe.name || 'Recipe'}</h3>
+            <p style="color:var(--gray); margin-bottom:1rem;">Health score ${recipe.health_score || 0} • ${recipe.nutrition?.calories || 0} kcal</p>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+              <button class="btn primary cooked-btn" data-recipe-id="${item.recipe_id}">Cook Again</button>
+              <a href="/recipe-detail/${item.recipe_id}" class="btn" style="background:#f3eadf;">Open Recipe</a>
+            </div>
+          </div>
         `;
         container.appendChild(div);
       });
-      document.querySelector('.section').appendChild(container);
     }
   })();
 }
@@ -416,34 +624,65 @@ function createRecipeCard(recipe) {
 
   const card = document.createElement('div');
   card.classList.add('recipe-card');
+  const hasMatchData = Array.isArray(recipe.matched_ingredients) || recipe.matching_score;
+  const isLiked = recipe.isFavorite === true;
+  const ingredients = Array.isArray(recipe.ingredients)
+    ? recipe.ingredients
+    : (typeof recipe.ingredients === "string" ? [recipe.ingredients] : []);
+  const healthType = recipe.health_label || recipe.category || 'Moderate';
 
   card.innerHTML = `
-    <img src="${recipe.image_url}" alt="${recipe.name}">
-    <h3>${recipe.name}</h3>
+    <div class="card-image-wrap">
+      <img
+        class="card-image"
+        src="${recipe.image_url || 'https://recipesimages.edgeone.app/default.jpg'}"
+        alt="${recipe.name}"
+        onerror="this.src='https://recipesimages.edgeone.app/default.jpg'"
+      >
+      <span class="badge ${healthType.toLowerCase().replace(/\s+/g, '-')} card-type-badge">
+        ${healthType}
+      </span>
+    </div>
 
-    <p><b>Ingredients:</b></p>
-    <ul>
-    ${
-      Array.isArray(recipe.ingredients)
-        ? recipe.ingredients.map(i => `<li>${i}</li>`).join("")
-        : (typeof recipe.ingredients === "string"
-            ? [recipe.ingredients].map(i => `<li>${i}</li>`).join("")
-            : "<li>No ingredients</li>")
-    }
-    </ul>
+    <div class="card-content">
+      <h3>${recipe.name}</h3>
 
-    <p><b>Matched:</b> ${
-      Array.isArray(recipe.matched_ingredients)
-        ? recipe.matched_ingredients.join(", ")
-        : "None"
-    }</p>
+      ${hasMatchData ? `
+        <p class="card-match-text">
+          ${Math.round(recipe.matching_score || 0)}% match
+          ${Array.isArray(recipe.matched_ingredients) && recipe.matched_ingredients.length ? ` • ${recipe.matched_ingredients.map(formatIngredient).join(", ")}` : ''}
+        </p>
+      ` : `
+        <p class="card-match-text">Estimated health type: ${healthType}</p>
+      `}
 
-    <div class="buttons">
-      <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">
-        View Recipe
-      </a>
+      <div class="buttons">
+        <button
+          class="btn view-ingredients-btn"
+          type="button"
+          data-recipe-name="${recipe.name}"
+          title="View ingredients"
+        >
+          View Ingredients
+        </button>
+
+        <button class="like-btn ${isLiked ? 'liked' : ''}" data-recipe-id="${recipe.recipe_id}" title="Save to favorites">
+          <i class="fas fa-heart"></i> ${isLiked ? 'Liked' : 'Favorite'}
+        </button>
+
+        <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">
+          ${hasMatchData ? 'Cook Recipe' : 'View Recipe'}
+        </a>
+      </div>
     </div>
   `;
+
+  const ingredientsButton = card.querySelector('.view-ingredients-btn');
+  if (ingredientsButton) {
+    ingredientsButton.addEventListener('click', () => {
+      openIngredientsDialog(recipe.name, ingredients);
+    });
+  }
 
   return card;
 }
@@ -613,15 +852,143 @@ const res = await fetch(`/health-report/${uid}`)
 
 const data = await res.json()
 
-document.getElementById("healthy-count").innerText = data.healthy
-document.getElementById("moderate-count").innerText = data.moderate
-document.getElementById("fast-count").innerText = data.fastfood
+if (document.getElementById("healthy-count")) {
+  document.getElementById("healthy-count").innerText = data.healthy
+}
+if (document.getElementById("moderate-count")) {
+  document.getElementById("moderate-count").innerText = data.moderate
+}
+if (document.getElementById("fast-count")) {
+  document.getElementById("fast-count").innerText = data.fastfood
+}
 
-document.getElementById("health-score").innerText =
-`Health Score: ${data.health_score} (${data.status})`
+if (document.getElementById("health-score")) {
+  document.getElementById("health-score").innerText =
+  `Health Score: ${data.health_score} (${data.status})`
+}
 
-document.getElementById("health-progress").style.width =
-Math.min(100,Math.max(0,data.health_score*5))+"%"
+const healthScoreValue = document.getElementById("health-score-value")
+if (healthScoreValue) {
+  healthScoreValue.innerText = data.health_score || 0
+}
+
+const healthScoreRing = document.getElementById("health-score-ring")
+if (healthScoreRing) {
+  const score = Math.max(0, Math.min(100, Number(data.health_score || 0)))
+  const degrees = Math.round((score / 100) * 360)
+  healthScoreRing.style.background = `conic-gradient(var(--secondary) 0deg, var(--secondary) ${degrees}deg, #ebe4d7 ${degrees}deg 360deg)`
+}
+
+if (document.getElementById("health-progress")) {
+  document.getElementById("health-progress").style.width =
+  Math.min(100,Math.max(0,data.health_score*5))+"%"
+}
+
+const suggestionsBox = document.getElementById("health-suggestions")
+if (suggestionsBox) {
+  suggestionsBox.innerHTML = data.warning
+    ? `Try a healthy next meal. ${data.warning}`
+    : "Your recent meals look balanced. Keep mixing fiber-rich and protein-rich foods."
+}
+
+const warningBox = document.getElementById("health-warning")
+if (warningBox) {
+  if (data.warning || data.last_notification) {
+    warningBox.style.display = "block"
+    warningBox.textContent = data.warning || data.last_notification
+  } else {
+    warningBox.style.display = "none"
+  }
+}
+
+const recommendationGrid = document.getElementById("healthy-recommendations-grid")
+if (recommendationGrid) {
+  const recommendations = Array.isArray(data.healthy_recommendations) ? data.healthy_recommendations : []
+  recommendationGrid.innerHTML = recommendations.length
+    ? recommendations.map(recipe => `
+        <div class="insight-item">
+          <h3>${recipe.name}</h3>
+          <p>${recipe.reason}</p>
+          <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">Cook This</a>
+        </div>
+      `).join("")
+    : '<div class="insight-item"><p>No healthy recommendations available yet.</p></div>'
+}
+
+const recentMealsGrid = document.getElementById("recent-meals-grid")
+if (recentMealsGrid) {
+  const meals = Array.isArray(data.recent_meals) ? data.recent_meals : []
+  recentMealsGrid.innerHTML = meals.length
+    ? meals.map(meal => `
+        <div class="insight-item">
+          <h3>${meal.recipe_name || "Recipe"}</h3>
+          <p>${meal.health_label || "Moderate"}</p>
+          <p>${meal.nutrition?.calories || 0} kcal</p>
+          <p>${meal.cooked_at ? new Date(meal.cooked_at).toLocaleDateString() : ""}</p>
+        </div>
+      `).join("")
+    : '<div class="insight-item"><p>No meals tracked yet. Cook a recipe to start monitoring.</p></div>'
+}
+
+}
+
+async function loadDashboardReport() {
+
+const uid = localStorage.getItem("uid")
+
+if(!uid || !document.getElementById("dashboard-total-cooked")) return
+
+const res = await fetch(`/dashboard-report/${uid}`)
+const data = await res.json()
+
+document.getElementById("dashboard-total-cooked").innerText = data.total_recipes_cooked || 0
+document.getElementById("dashboard-healthy-count").innerText = data.healthy || 0
+document.getElementById("dashboard-moderate-count").innerText = data.moderate || 0
+document.getElementById("dashboard-unhealthy-count").innerText = data.unhealthy || 0
+document.getElementById("dashboard-health-score").innerText = data.health_score || 0
+document.getElementById("dashboard-favorites-count").innerText = data.favorite_count || 0
+
+const smartTip = document.getElementById("dashboard-smart-tip")
+if (smartTip) {
+  smartTip.textContent = data.smart_tip || "Track cooked recipes, health score, and your meal pattern."
+}
+
+const tipCard = document.getElementById("dashboard-tip-card")
+if (tipCard) {
+  tipCard.textContent = data.smart_tip || "Balanced cooking starts with one healthier next meal."
+}
+
+const warningCard = document.getElementById("dashboard-warning")
+if (warningCard) {
+  if (data.warning) {
+    warningCard.style.display = "block"
+    warningCard.textContent = data.warning
+  } else {
+    warningCard.style.display = "none"
+  }
+}
+
+const scoreRing = document.getElementById("dashboard-score-ring")
+if (scoreRing) {
+  const score = Math.max(0, Math.min(100, Number(data.health_score || 0)))
+  const degrees = Math.round((score / 100) * 360)
+  scoreRing.style.background = `conic-gradient(var(--secondary) 0deg, var(--secondary) ${degrees}deg, #efe5d7 ${degrees}deg 360deg)`
+}
+
+const recentMeals = document.getElementById("dashboard-recent-meals")
+if (recentMeals) {
+  const meals = Array.isArray(data.recent_meals) ? data.recent_meals : []
+  recentMeals.innerHTML = meals.length
+    ? meals.map(meal => `
+        <div class="dashboard-list-item">
+          <strong style="display:block; color:var(--secondary);">${meal.recipe_name || "Recipe"}</strong>
+          <span style="display:block; margin-top:0.25rem; color:var(--gray);">${meal.health_label || "Moderate"} meal</span>
+          <span style="display:block; margin-top:0.2rem; color:var(--gray);">Health score ${meal.health_score || 0}</span>
+          <span style="display:block; margin-top:0.2rem; color:var(--gray);">${meal.cooked_at ? new Date(meal.cooked_at).toLocaleDateString() : ""}</span>
+        </div>
+      `).join("")
+    : '<div class="dashboard-list-item">Cook a recipe to start seeing your meal history.</div>'
+}
 
 }
 
@@ -631,22 +998,21 @@ console.log(document.getElementById("favorites-container"));
 // Load favorites
 async function loadFavorites() {
   const uid = localStorage.getItem('uid');
-  if (!uid) return;
+  const favGrid = document.querySelector('.favorite-grid');
+  if (!uid || !favGrid) return;
 
   try {
     const res = await fetch(`/favorites/${uid}`);
     if (!res.ok) throw new Error('Failed to load favorites');
 
     const favorites = await res.json();
-    const favGrid = document.querySelector('.favorite-grid');
     favGrid.innerHTML = favorites.length === 0 
       ? '<p style="text-align:center; padding:2rem;">You haven\'t liked any recipes yet.</p>'
       : '';
 
     favorites.forEach(fav => {
-      const card = createRecipeCard(fav.recipe);
-      card.querySelector('.like-btn').classList.add('liked');
-      card.querySelector('.like-btn').textContent = 'Liked';
+      fav.isFavorite = true;
+      const card = createRecipeCard(fav);
       favGrid.appendChild(card);
     });
   } catch (err) {
@@ -699,9 +1065,13 @@ async function captureImage() {
 
     const video = document.getElementById("camera");
     const canvas = document.getElementById("canvas");
-    const resultsDiv = document.getElementById("detected-results");
 
     const ctx = canvas.getContext("2d");
+
+    if (!video || !video.srcObject) {
+        alert("Start the camera first");
+        return;
+    }
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -719,22 +1089,7 @@ async function captureImage() {
         });
 
         const data = await res.json();
-
-        resultsDiv.innerHTML = "";
-
-        if (!data.ingredients.length) {
-            resultsDiv.innerHTML = "No ingredients detected";
-            return;
-        }
-
-        data.ingredients.forEach(item => {
-
-            const p = document.createElement("p");
-            p.innerText = "📸 " + item;
-
-            resultsDiv.appendChild(p);
-
-        });
+        addDetectedIngredients(data.ingredients || [], "Camera");
 
     });
 }
@@ -742,6 +1097,7 @@ async function captureImage() {
 async function startCamera() {
 
     const video = document.getElementById("camera");
+    const placeholder = document.getElementById("camera-placeholder");
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -749,6 +1105,11 @@ async function startCamera() {
         });
 
         video.srcObject = stream;
+        video.style.display = "block";
+        if (placeholder) {
+            placeholder.style.display = "none";
+        }
+        setDetectedMessage("Camera started. Capture an image to detect ingredients.");
 
     } catch (err) {
         alert("Camera access denied");
@@ -761,7 +1122,6 @@ window.startCamera = startCamera;
 function detectIngredients() {
 
     const imageUpload = document.getElementById("imageUpload");
-    const resultsDiv = document.getElementById("detected-results");
 
     if (!imageUpload.files.length) {
         alert("Please upload an image first");
@@ -777,23 +1137,7 @@ function detectIngredients() {
     })
     .then(res => res.json())
     .then(data => {
-
-        resultsDiv.innerHTML = "";
-
-        if (!data.ingredients || data.ingredients.length === 0) {
-            resultsDiv.innerHTML = "No ingredients detected";
-            return;
-        }
-
-        data.ingredients.forEach(item => {
-
-            const p = document.createElement("p");
-
-            p.innerText = "🍅 " + item;
-
-            resultsDiv.appendChild(p);
-
-        });
+        addDetectedIngredients(data.ingredients || [], "Image");
 
     })
     .catch(err => console.error(err));
@@ -848,7 +1192,7 @@ window.detectIngredients = detectIngredients;
 
 const startCameraBtn = document.getElementById("startCamera");
 const captureBtn = document.getElementById("captureBtn");
-const detectBtn = document.getElementById("detectBtn");
+const detectBtn = document.getElementById("detect-image-ingredients");
 
 const video = document.getElementById("camera");
 const canvas = document.getElementById("canvas");
@@ -857,6 +1201,18 @@ const imageUpload = document.getElementById("imageUpload");
 const resultsDiv = document.getElementById("detected-results");
 
 let stream;
+
+if (startCameraBtn) {
+    startCameraBtn.addEventListener("click", startCamera);
+}
+
+if (captureBtn) {
+    captureBtn.addEventListener("click", captureImage);
+}
+
+if (detectBtn) {
+    detectBtn.addEventListener("click", detectIngredients);
+}
 
 
 /* -------------------------
@@ -988,6 +1344,48 @@ View Recipe
 
 }
 
+function openIngredientsDialog(recipeName, ingredients) {
+  const existingOverlay = document.querySelector('.ingredients-dialog-overlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'ingredients-dialog-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'ingredients-dialog';
+  dialog.innerHTML = `
+    <div class="ingredients-dialog-header">
+      <div>
+        <span class="ingredients-dialog-eyebrow">Recipe Ingredients</span>
+        <h3>${recipeName}</h3>
+      </div>
+      <button type="button" class="ingredients-dialog-close" aria-label="Close ingredients dialog">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="ingredients-dialog-body">
+      ${
+        Array.isArray(ingredients) && ingredients.length
+          ? ingredients.map(item => `<div class="ingredients-dialog-item">${item}</div>`).join('')
+          : '<div class="ingredients-dialog-item">No ingredients available.</div>'
+      }
+    </div>
+  `;
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  const closeDialog = () => overlay.remove();
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay) {
+      closeDialog();
+    }
+  });
+  dialog.querySelector('.ingredients-dialog-close')?.addEventListener('click', closeDialog);
+}
+
 // function displayResults(items) {
 
 //     resultsDiv.innerHTML = "";
@@ -1008,6 +1406,7 @@ View Recipe
 let scrollTimeout;
 
 window.addEventListener('scroll', () => {
+  if (!document.getElementById('search-input')) return;
 
   if (scrollTimeout) return;
 
@@ -1066,9 +1465,12 @@ document.addEventListener('click', async e => {
 
 // Initial load
 document.addEventListener('DOMContentLoaded', () => {
-  
-    loadRecipes(true);
-    // loadFavorites();
+    if (document.getElementById('search-input')) {
+      loadRecipes(true);
+      // loadFavorites();
+    }
+    loadDashboardReport();
+    loadHealthReport();
 
 });
 

@@ -7,6 +7,122 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .health-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      .health-hero {
+        background:
+          radial-gradient(circle at top left, rgba(19, 136, 8, 0.22), transparent 30%),
+          radial-gradient(circle at bottom right, rgba(255, 153, 51, 0.2), transparent 30%),
+          linear-gradient(135deg, #eff8ef 0%, #fffdf8 56%, #fff5e8 100%);
+        border-radius: 34px;
+        padding: 2rem;
+        box-shadow: 0 24px 60px rgba(22, 18, 12, 0.08);
+        margin-bottom: 2rem;
+      }
+
+      .health-hero-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 1.5rem;
+        align-items: start;
+        flex-wrap: wrap;
+      }
+
+      .health-hero h2 {
+        text-align: left;
+        margin-bottom: 0.6rem;
+      }
+
+      .health-score-ring {
+        width: 132px;
+        height: 132px;
+        border-radius: 50%;
+        background: conic-gradient(var(--secondary) 0deg, var(--secondary) 180deg, #ebe4d7 180deg 360deg);
+        padding: 12px;
+        display: grid;
+        place-items: center;
+      }
+
+      .health-score-ring-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: #fff;
+        display: grid;
+        place-items: center;
+        text-align: center;
+      }
+
+      .health-overview-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+
+      .health-stat-card,
+      .health-panel {
+        background: rgba(255,255,255,0.92);
+        border-radius: 24px;
+        padding: 1.15rem 1.25rem;
+        border: 1px solid rgba(0,0,0,0.05);
+      }
+
+      .health-stat-card h3 {
+        margin-bottom: 0.4rem;
+        color: var(--secondary);
+      }
+
+      .health-stat-card p {
+        font-size: 1.6rem;
+        font-weight: 700;
+      }
+
+      .health-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+        gap: 1.5rem;
+      }
+
+      .health-panel {
+        box-shadow: 0 18px 45px rgba(22, 18, 12, 0.08);
+      }
+
+      .health-panel h2 {
+        text-align: left;
+        margin-bottom: 1rem;
+      }
+
+      .insight-list {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .insight-item {
+        background: linear-gradient(180deg, #fffdf9 0%, #fff7ec 100%);
+        border-radius: 20px;
+        padding: 1rem;
+        border: 1px solid rgba(0,0,0,0.05);
+      }
+
+      .tracker-warning {
+        display: none;
+        background: #fff1ef;
+        color: #b83a2f;
+        border: 1px solid rgba(184, 58, 47, 0.16);
+      }
+
+      @media (max-width: 980px) {
+        .health-overview-grid,
+        .health-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -45,42 +161,53 @@
     </header>
 
     <section class="section">
-      <h2>Health Score Meter</h2>
-      <div class="card">
-        <p id="health-score"></p>
-        <div class="match-bar">
-          <div class="progress" id="health-progress"></div>
+      <div class="health-shell">
+        <div class="health-hero">
+          <div class="health-hero-top">
+            <div>
+              <h2>Health Tracker</h2>
+              <p id="health-suggestions">See how your recent meals are shaping your health pattern and where to improve next.</p>
+            </div>
+            <div class="health-score-ring" id="health-score-ring">
+              <div class="health-score-ring-inner">
+                <div>
+                  <strong id="health-score-value" style="font-size:1.8rem; color:var(--secondary);">0</strong>
+                  <div style="font-size:0.85rem; color:var(--gray);">Health Score</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="health-overview-grid">
+            <div class="health-stat-card">
+              <h3>Healthy Meals</h3>
+              <p id="healthy-count">0</p>
+            </div>
+            <div class="health-stat-card">
+              <h3>Moderate Meals</h3>
+              <p id="moderate-count">0</p>
+            </div>
+            <div class="health-stat-card">
+              <h3>Unhealthy Meals</h3>
+              <p id="fast-count">0</p>
+            </div>
+          </div>
+
+          <div class="card tracker-warning" id="health-warning" style="margin-top: 1rem;"></div>
+        </div>
+
+        <div class="health-layout">
+          <div class="health-panel">
+            <h2>Recommended Healthy Recipes</h2>
+            <div class="insight-list" id="healthy-recommendations-grid"></div>
+          </div>
+
+          <div class="health-panel">
+            <h2>Recent Meals</h2>
+            <div class="insight-list" id="recent-meals-grid"></div>
+          </div>
         </div>
       </div>
-      <h2>Weekly Summary</h2>
-      <div class="weekly-grid">
-        <div class="weekly-card">
-          <h3>Healthy Recipes</h3>
-          <p id="healthy-count"></p>
-        </div>
-        <div class="weekly-card">
-          <h3>Moderate Recipes</h3>
-          <p id="moderate-count"></p>
-        </div>
-        <div class="weekly-card">
-          <h3>Fast Food</h3>
-          <p id="fast-count"></p>
-        </div>
-      </div>
-
-      <h2>Bar Chart</h2>
-      <div class="bar-chart">
-        <div class="bar" style="height:80%;">Mon</div>
-        <div class="bar" style="height:60%;">Tue</div>
-        <div class="bar" style="height:90%;">Wed</div>
-        <div class="bar" style="height:70%;">Thu</div>
-        <div class="bar" style="height:50%;">Fri</div>
-      </div>
-
-      <h2>Suggestions</h2>
-      <div class="card">Include more veggies in your meals.</div>
-
-      <div class="card" style="background: #ffebee; color: var(--danger);">Warning: High fast food intake this week!</div>
     </section>
 
     <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>

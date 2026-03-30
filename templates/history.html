@@ -3,10 +3,81 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title></title>
+    <title>Cooking History - RecipeGenie</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .history-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      .history-hero {
+        background:
+          radial-gradient(circle at top left, rgba(255, 153, 51, 0.22), transparent 26%),
+          radial-gradient(circle at bottom right, rgba(19, 136, 8, 0.18), transparent 28%),
+          linear-gradient(135deg, #fffaf2 0%, #fffefb 54%, #eef8ef 100%);
+        border-radius: 34px;
+        padding: 2rem;
+        box-shadow: 0 24px 60px rgba(22, 18, 12, 0.08);
+        margin-bottom: 2rem;
+      }
+
+      .history-hero h2 {
+        text-align: left;
+        margin-bottom: 0.6rem;
+      }
+
+      .history-hero p {
+        max-width: 680px;
+      }
+
+      .history-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.2rem;
+      }
+
+      .history-card {
+        background: linear-gradient(180deg, #fffdf9 0%, #fff6eb 100%);
+        border-radius: 26px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 153, 51, 0.14);
+        box-shadow: 0 20px 46px rgba(22, 18, 12, 0.08);
+      }
+
+      .history-card img {
+        width: 100%;
+        height: 220px;
+        object-fit: cover;
+      }
+
+      .history-card-body {
+        padding: 1.15rem;
+      }
+
+      .history-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 0.8rem;
+      }
+
+      .history-meta span {
+        color: var(--gray);
+        font-size: 0.88rem;
+      }
+
+      .history-empty {
+        background: #fff;
+        border-radius: 28px;
+        padding: 2.2rem;
+        text-align: center;
+        box-shadow: 0 18px 45px rgba(22, 18, 12, 0.06);
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -45,20 +116,16 @@
     </header>
 
     <section class="section">
-      <h2>Cooking History</h2>
-      <div class="history-item">
-        <h3>Dhokla</h3>
-        <p>Date: Jan 10, 2026</p>
-        <span class="badge healthy">Healthy</span>
-        <button class="btn primary">Cook Again</button>
+      <div class="history-shell">
+        <div class="history-hero">
+          <h2>Your Cooking History</h2>
+          <p>Every cooked recipe appears here with its health type, date, and quick action to cook it again.</p>
+        </div>
+
+        <div class="history-grid history-container" id="history-list">
+          <div class="history-empty">Cook a recipe to start building your cooking history.</div>
+        </div>
       </div>
-      <div class="history-item">
-        <h3>Methi Thepla</h3>
-        <p>Date: Jan 5, 2026</p>
-        <span class="badge moderate">Moderate</span>
-        <button class="btn primary">Cook Again</button>
-      </div>
-      <!-- More items can be added -->
     </section>
 
     <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>

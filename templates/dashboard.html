@@ -7,6 +7,136 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .dashboard-shell {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .dashboard-hero {
+      background:
+        radial-gradient(circle at top left, rgba(255, 153, 51, 0.22), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(19, 136, 8, 0.18), transparent 26%),
+        linear-gradient(135deg, #fffaf2 0%, #fffefb 52%, #eef7ee 100%);
+      border-radius: 34px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 24px 60px rgba(22, 18, 12, 0.08);
+    }
+
+    .dashboard-hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1.5rem;
+      align-items: start;
+      flex-wrap: wrap;
+    }
+
+    .dashboard-hero h2 {
+      text-align: left;
+      margin-bottom: 0.6rem;
+    }
+
+    .score-ring {
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--secondary) 0deg, var(--secondary) 180deg, #efe5d7 180deg 360deg);
+      padding: 12px;
+      flex-shrink: 0;
+    }
+
+    .score-ring-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      text-align: center;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .dashboard-stat {
+      background: rgba(255,255,255,0.88);
+      border-radius: 22px;
+      padding: 1rem 1.1rem;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .dashboard-stat span {
+      display: block;
+      font-size: 0.84rem;
+      color: var(--gray);
+    }
+
+    .dashboard-stat strong {
+      display: block;
+      margin-top: 0.3rem;
+      color: var(--secondary);
+      font-size: 1.4rem;
+    }
+
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 1.5rem;
+    }
+
+    .dashboard-panel {
+      background: #fff;
+      border-radius: 28px;
+      padding: 1.4rem;
+      box-shadow: 0 18px 45px rgba(22, 18, 12, 0.08);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .dashboard-panel h2 {
+      text-align: left;
+      margin-bottom: 1rem;
+    }
+
+    .dashboard-list {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .dashboard-list-item {
+      border-radius: 20px;
+      padding: 1rem;
+      background: linear-gradient(180deg, #fffdf9 0%, #fff7ec 100%);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .dashboard-warning {
+      display: none;
+      background: #fff0ee;
+      color: #b23a2b;
+      border: 1px solid rgba(178, 58, 43, 0.16);
+    }
+
+    @media (max-width: 980px) {
+      .dashboard-grid,
+      .dashboard-layout {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .dashboard-grid,
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -27,23 +157,64 @@
   </header>
 
   <section class="section">
-    <h2>Welcome, Gunavant <i class="fas fa-user-circle" style="color:var(--primary);"></i></h2>
+    <div class="dashboard-shell">
+      <div class="dashboard-hero">
+        <div class="dashboard-hero-top">
+          <div>
+            <h2>Your Cooking Dashboard</h2>
+            <p id="dashboard-smart-tip">Track cooked recipes, health score, and the food pattern you are building through RecipeGenie.</p>
+          </div>
+          <div class="score-ring" id="dashboard-score-ring">
+            <div class="score-ring-inner">
+              <div>
+                <strong id="dashboard-health-score">0</strong>
+                <div style="font-size:0.85rem; color:var(--gray);">Health Score</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-    <div class="stats-grid">
-      <div class="card"><h3>Total Recipes Cooked</h3><p>25</p></div>
-      <div class="card"><h3>Healthy</h3><p>15</p></div>
-      <div class="card"><h3>Fast Food</h3><p>5</p></div>
-      <div class="card"><h3>Moderate</h3><p>5</p></div>
+        <div class="dashboard-grid">
+          <div class="dashboard-stat">
+            <span>Total Recipes Cooked</span>
+            <strong id="dashboard-total-cooked">0</strong>
+          </div>
+          <div class="dashboard-stat">
+            <span>Healthy Meals</span>
+            <strong id="dashboard-healthy-count">0</strong>
+          </div>
+          <div class="dashboard-stat">
+            <span>Moderate Meals</span>
+            <strong id="dashboard-moderate-count">0</strong>
+          </div>
+          <div class="dashboard-stat">
+            <span>Unhealthy Meals</span>
+            <strong id="dashboard-unhealthy-count">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-layout">
+        <div class="dashboard-panel">
+          <h2>Recent Cooking Activity</h2>
+          <div class="dashboard-list" id="dashboard-recent-meals">
+            <div class="dashboard-list-item">Cook a recipe to start seeing your meal history.</div>
+          </div>
+        </div>
+
+        <div class="dashboard-panel">
+          <h2>Quick Insights</h2>
+          <div class="dashboard-list">
+            <div class="dashboard-list-item">
+              <span style="display:block; color:var(--gray); font-size:0.85rem;">Favorites Saved</span>
+              <strong id="dashboard-favorites-count" style="display:block; margin-top:0.3rem; color:var(--secondary); font-size:1.4rem;">0</strong>
+            </div>
+            <div class="dashboard-list-item dashboard-warning" id="dashboard-warning"></div>
+            <div class="dashboard-list-item" id="dashboard-tip-card">Balanced cooking starts with one healthier next meal.</div>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <h2>Health Score</h2>
-    <div class="card">
-      <div class="pie-chart" style="background: conic-gradient(var(--success) 0% 60%, var(--warning) 60% 80%, var(--danger) 80% 100%);"></div>
-      <p>Good (75%)</p>
-    </div>
-
-    <h2>Smart Suggestions</h2>
-    <div class="card">Try more healthy recipes like Khandvi to boost your score!</div>
   </section>
 
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>

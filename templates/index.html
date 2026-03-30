@@ -7,6 +7,302 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .create-recipe-hero {
+        background:
+          radial-gradient(circle at top left, rgba(255, 176, 0, 0.2), transparent 32%),
+          radial-gradient(circle at bottom right, rgba(231, 111, 81, 0.18), transparent 28%),
+          linear-gradient(135deg, #fff8ee 0%, #fffdf8 55%, #fef4df 100%);
+        padding: 3rem 1.5rem 4rem;
+      }
+
+      .create-recipe-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: 2rem;
+        align-items: start;
+      }
+
+      .hero-copy h1 {
+        font-size: clamp(2.4rem, 4vw, 4.25rem);
+        line-height: 1.05;
+        margin-bottom: 1rem;
+      }
+
+      .hero-copy p {
+        font-size: 1.05rem;
+        max-width: 620px;
+        color: #5c4a3f;
+      }
+
+      .hero-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        margin-top: 1.5rem;
+      }
+
+      .hero-stat {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(231, 111, 81, 0.18);
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        min-width: 160px;
+        box-shadow: 0 16px 35px rgba(88, 52, 27, 0.08);
+      }
+
+      .hero-stat strong {
+        display: block;
+        font-size: 1.1rem;
+        color: #b24b2a;
+      }
+
+      .hero-stat span {
+        color: #6e5746;
+        font-size: 0.92rem;
+      }
+
+      .create-recipe-card {
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(240, 183, 105, 0.38);
+        border-radius: 30px;
+        padding: 1.6rem;
+        box-shadow: 0 24px 60px rgba(88, 52, 27, 0.12);
+        backdrop-filter: blur(12px);
+      }
+
+      .create-recipe-card h2 {
+        margin: 0 0 0.35rem;
+        font-size: 1.55rem;
+      }
+
+      .create-recipe-card p {
+        color: #6f5a4a;
+        margin-bottom: 1rem;
+      }
+
+      .ingredient-bar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.8rem;
+        align-items: center;
+      }
+
+      .ingredient-bar input {
+        min-width: 0;
+        border: 1px solid #ebd5bf;
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+        font-size: 1rem;
+        background: #fffdf9;
+      }
+
+      .icon-btn {
+        width: 50px;
+        height: 50px;
+        border: none;
+        border-radius: 16px;
+        background: #fff2df;
+        color: #b24b2a;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+
+      .search-primary {
+        border: none;
+        border-radius: 16px;
+        padding: 0.95rem 1.3rem;
+        cursor: pointer;
+        background: linear-gradient(135deg, #ef7a44 0%, #d95d39 100%);
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .ingredient-assist {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 0.85rem;
+        color: #7a6454;
+        font-size: 0.92rem;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        min-height: 48px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.65rem 0.9rem;
+        border-radius: 999px;
+        background: #fff0dc;
+        color: #9d4b27;
+        border: 1px solid #ffd0b5;
+        font-weight: 500;
+      }
+
+      .tag button {
+        border: none;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .smart-input-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-top: 1.3rem;
+      }
+
+      .smart-panel {
+        background: #fffaf2;
+        border: 1px solid #f3dcc2;
+        border-radius: 22px;
+        padding: 1rem;
+      }
+
+      .smart-panel h3 {
+        margin-top: 0;
+        margin-bottom: 0.35rem;
+        font-size: 1rem;
+      }
+
+      .smart-panel p {
+        margin-bottom: 0.9rem;
+        font-size: 0.92rem;
+      }
+
+      .smart-panel .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+
+      .camera-preview {
+        width: 100%;
+        min-height: 180px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #f4dcc4 0%, #ead4bb 100%);
+        object-fit: cover;
+        display: none;
+        margin-bottom: 0.85rem;
+      }
+
+      .camera-placeholder {
+        min-height: 180px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #f9ead7 0%, #f4dfc4 100%);
+        color: #886956;
+        margin-bottom: 0.85rem;
+        text-align: center;
+        padding: 1rem;
+      }
+
+      .detected-results,
+      .results-summary {
+        margin-top: 1rem;
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+        background: #fffaf1;
+        border: 1px solid #f1dcc2;
+        color: #765d4b;
+      }
+
+      .actions-row {
+        margin-top: 1.2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        align-items: center;
+      }
+
+      .loading-chip {
+        display: none;
+        align-items: center;
+        gap: 0.7rem;
+        color: #955134;
+        font-weight: 500;
+      }
+
+      .loading-chip .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(217, 93, 57, 0.18);
+        border-top-color: #d95d39;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .results-section {
+        max-width: 1180px;
+        margin: 0 auto 4rem;
+        padding: 0 1.5rem;
+      }
+
+      .results-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: end;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+      }
+
+      .selected-ingredients-preview {
+        color: #755847;
+        font-size: 0.95rem;
+      }
+
+      .recipe-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.4rem;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 2.75rem 1.5rem;
+        border: 1px dashed #efc18c;
+        border-radius: 24px;
+        background: linear-gradient(180deg, #fffdf9 0%, #fff6ea 100%);
+        color: #735948;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 960px) {
+        .create-recipe-shell,
+        .smart-input-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .ingredient-bar {
+          grid-template-columns: 1fr;
+        }
+
+        .icon-btn,
+        .search-primary {
+          width: 100%;
+        }
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -44,69 +340,108 @@
       </nav>
     </header>
 
-    <section class="hero">
-      <h1>Discover Authentic Gujarat Recipes</h1>
-      <p>Explore the rich flavors of Gujarat with smart recommendations based on your ingredients.</p>
-    </section>
-
-    <!-- INGREDIENT INPUT -->
-    <section class="section">
-      <h2>Enter Ingredients</h2>
-
-      <div class="input-group">
-        <input type="text" id="ingredient" placeholder="e.g., besan, methi, yogurt" />
-
-        <button class="mic"><i class="fas fa-microphone"></i></button>
-
-        <button class="btn primary" id="add-ingredient">Add</button>
-      </div>
-
-      <div class="tags" id="tags-container"></div>
-    </section>
-
-    <!-- IMAGE DETECTION -->
-    <section class="section">
-      <h2>Detect Ingredients From Image</h2>
-
-      <div class="image-detect-container">
-        <div class="upload-box">
-          <input type="file" id="imageUpload" accept="image/*" />
-
-          <button onclick="detectIngredients()" class="btn primary">Detect Ingredients</button>
+    <section class="create-recipe-hero">
+      <div class="create-recipe-shell">
+        <div class="hero-copy">
+          <span class="badge healthy">Smart Cooking Assistant</span>
+          <h1>Build your recipe search from ingredients you type, speak, or scan.</h1>
+          <p>
+            Add ingredients into one search bar, then RecipeGenie looks in Firebase and returns only the recipes that
+            contain what you provided. Pick a matching recipe card and open it when you are ready to cook.
+          </p>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <strong>Text + Voice + Image</strong>
+              <span>Every input mode feeds the same ingredient bar.</span>
+            </div>
+            <div class="hero-stat">
+              <strong>Firebase Search</strong>
+              <span>Results are filtered by matched ingredients, not all recipes.</span>
+            </div>
+            <div class="hero-stat">
+              <strong>Cook Selected Recipe</strong>
+              <span>Open the card you want and start cooking from the detail page.</span>
+            </div>
+          </div>
         </div>
 
-        <div class="camera-box">
-          <video id="camera" autoplay></video>
-          <button onclick="startCamera()" class="btn">Start Camera</button>
-          <button onclick="captureImage()" class="btn primary">Capture</button>
+        <div class="create-recipe-card">
+          <h2>Create your recipe search</h2>
+          <p>Type an ingredient, speak it, or detect it from an image. Every added item becomes part of the ingredient bar.</p>
+
+          <div class="ingredient-bar">
+            <input type="text" id="ingredient" placeholder="Add ingredients like tomato, onion, besan, yogurt" />
+            <button class="icon-btn" id="voice-ingredient" type="button" aria-label="Add ingredient using voice">
+              <i class="fas fa-microphone"></i>
+            </button>
+            <button class="search-primary" id="add-ingredient" type="button">Add Ingredient</button>
+          </div>
+
+          <div class="ingredient-assist">
+            <span>Press Enter to add quickly.</span>
+            <span id="ingredient-counter">0 ingredients selected</span>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <label for="recipe-demand"><strong>Tell RecipeGenie what you want</strong></label>
+            <input
+              type="text"
+              id="recipe-demand"
+              placeholder="Example: I want a healthy high protein Gujarati recipe"
+              style="width: 100%; margin-top: 0.5rem; border: 1px solid #ebd5bf; border-radius: 18px; padding: 0.95rem 1rem; font-size: 1rem; background: #fffdf9;"
+            />
+            <p style="margin-top: 0.5rem; margin-bottom: 0;">NLP will use this to understand if you want healthy, moderate, or richer food.</p>
+          </div>
+
+          <div class="tags" id="tags-container"></div>
+
+          <div class="smart-input-grid">
+            <div class="smart-panel">
+              <h3>Image ingredient detection</h3>
+              <p>Upload a fridge, basket, or vegetable image and detected ingredients will be added to the bar.</p>
+              <input type="file" id="imageUpload" accept="image/*" />
+              <div class="btn-row" style="margin-top: 0.9rem;">
+                <button class="btn primary" id="detect-image-ingredients" type="button">Detect From Image</button>
+              </div>
+            </div>
+
+            <div class="smart-panel">
+              <h3>Camera capture</h3>
+              <p>Open the camera, capture a frame, and detected ingredients are added automatically.</p>
+              <div class="camera-placeholder" id="camera-placeholder">
+                Camera preview will appear here after you start the camera.
+              </div>
+              <video id="camera" class="camera-preview" autoplay playsinline muted></video>
+              <div class="btn-row">
+                <button class="btn" id="startCamera" type="button">Start Camera</button>
+                <button class="btn primary" id="captureBtn" type="button">Capture & Detect</button>
+              </div>
+            </div>
+          </div>
+
+          <canvas id="canvas" style="display:none;"></canvas>
+          <div id="detected-results" class="detected-results">Detected ingredients will appear here and be added to the ingredient bar.</div>
+
+          <div class="actions-row">
+            <button class="btn primary" id="find-recipes" type="button">Find Matching Recipes</button>
+            <div class="loading-chip" id="ingredient-search-loading">
+              <div class="spinner"></div>
+              <span>Searching Firebase for matching recipes...</span>
+            </div>
+          </div>
         </div>
       </div>
-
-      <canvas id="canvas" style="display:none;"></canvas>
-
-      <div id="detected-results"></div>
     </section>
 
-    <section class="section">
-      <button class="btn primary" id="find-recipes">Find Recipes</button>
-
-      <div id="loading" style="display:none;">
-        <div class="spinner"></div>
-        <p>Loading recipes...</p>
+    <section class="results-section">
+      <div class="results-heading">
+        <div>
+          <h2>Filtered Recipes</h2>
+          <p class="selected-ingredients-preview" id="selected-ingredients-preview">No ingredients selected yet.</p>
+        </div>
+        <div class="results-summary" id="results-summary">Add ingredients and click "Find Matching Recipes" to see only the recipes that contain them.</div>
       </div>
 
-      <!-- No more data -->
-      <div id="no-more" style="display:none;">
-        <p>No more recipes</p>
-      </div>
-      <!---->
-      <div class="loading">
-        <p>Finding best matches...</p>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>Recommended Recipes</h2>
       <div class="recipe-grid"></div>
     </section>
 

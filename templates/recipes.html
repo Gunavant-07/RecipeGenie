@@ -7,6 +7,41 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .recipes-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      .recipes-hero {
+        background:
+          radial-gradient(circle at top left, rgba(255, 153, 51, 0.22), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(19, 136, 8, 0.16), transparent 26%),
+          linear-gradient(135deg, #fffaf2 0%, #fffefb 54%, #eef7ef 100%);
+        border-radius: 34px;
+        padding: 2rem;
+        box-shadow: 0 24px 60px rgba(22, 18, 12, 0.08);
+        margin-bottom: 2rem;
+      }
+
+      .recipes-hero h2 {
+        text-align: left;
+        margin-bottom: 0.6rem;
+      }
+
+      .recipes-filter-panel {
+        background: rgba(255,255,255,0.9);
+        border-radius: 26px;
+        padding: 1rem;
+        margin-top: 1.4rem;
+        border: 1px solid rgba(0,0,0,0.05);
+      }
+
+      .recipes-section-title {
+        text-align: left;
+        margin-top: 2.5rem;
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -45,40 +80,40 @@
     </header>
 
     <section class="section">
-      <h2>Discover Recipes</h2>
+      <div class="recipes-shell">
+        <div class="recipes-hero">
+          <h2>Explore Recipes</h2>
+          <p>Browse recipe cards, filter by state or rating, and save favorites for the next cooking session.</p>
 
-      <!-- Filters -->
-      <div class="filter-group" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; align-items: center;">
-        <input type="text" id="search-input" placeholder="Search by name..." style="flex: 1; min-width: 200px; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;" />
+          <div class="recipes-filter-panel">
+            <div class="filter-group" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
+              <input type="text" id="search-input" placeholder="Search by name..." style="flex: 1; min-width: 200px; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;" />
 
-        <select id="state-select" style="padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
-          <option value="All">All States</option>
-          <option value="Gujarat" selected>Gujarat</option>
-          <option value="Maharashtra">Maharashtra</option>
-          <option value="Punjab">Punjab</option>
-        </select>
+              <select id="state-select" style="padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
+                <option value="All">All States</option>
+                <option value="Gujarat" selected>Gujarat</option>
+                <option value="Maharashtra">Maharashtra</option>
+                <option value="Punjab">Punjab</option>
+              </select>
 
-        <label style="display: flex; align-items: center; gap: 0.5rem;"><input type="checkbox" id="high-rated" />High Rated Only (≥4.5)</label>
+              <label style="display: flex; align-items: center; gap: 0.5rem;"><input type="checkbox" id="high-rated" />High Rated Only (≥4.5)</label>
 
-        <button id="apply-filter" class="btn primary">Apply</button>
+              <button id="apply-filter" class="btn primary">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="recipe-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;"></div>
+
+        <div id="loading" class="loading" style="display: none; text-align: center; padding: 3rem 0;">
+          <div class="spinner"></div>
+          <p>Loading more recipes...</p>
+        </div>
+
+        <div id="no-more" style="display: none; text-align: center; padding: 3rem 0; color: var(--gray);">
+          <p>No more recipes to load.</p>
+        </div>
       </div>
-
-      <!-- Recipe Grid -->
-      <div class="recipe-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;"></div>
-
-      <!-- Loading & End indicators -->
-      <div id="loading" class="loading" style="display: none; text-align: center; padding: 3rem 0;">
-        <div class="spinner"></div>
-        <p>Loading more recipes...</p>
-      </div>
-
-      <div id="no-more" style="display: none; text-align: center; padding: 3rem 0; color: var(--gray);">
-        <p>No more recipes to load.</p>
-      </div>
-
-      <!-- Favorites Section -->
-      <h2 style="margin-top: 3rem;">Your Favorites</h2>
-      <div class="favorite-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;"></div>
     </section>
 
     <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
