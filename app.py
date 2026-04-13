@@ -16,6 +16,7 @@ import urllib.parse
 import numpy as np
 import cv2
 import ast
+import sys
 
 
 
@@ -97,6 +98,10 @@ def history_page():
 def health_page():
     return render_template('health.html')
 
+@app.route('/generate-recipe-page')
+def generate_recipe_page():
+    return render_template('generateRecipe.html')
+
 @app.route('/register')
 def register_page():
     return render_template('register.html')
@@ -159,61 +164,255 @@ def login_page():
    
 
 # #....................................................................................
-CSV_FILE = 'E:/4th Semester/final project/Food recomandation web app/23-01-26/Recipe_Data/recipes.csv'   # your file name
+CSV_FILE = 'E:/RecipeGenie/RecipeGenie/archive/Recipe_Dataset.csv'
 
-COLLECTION_NAME = 'recipes'                  # Firestore collection
+ALL_RECIPES_COLLECTION = 'all_recipes'
+LEGACY_RECIPES_COLLECTION = 'recipes'
+STATE_INDEX_COLLECTION = 'recipe_state_index'
 CHECK_FOR_DUPLICATES = True                  # prevent re-uploading same recipe name
 
-BASE_IMAGE_URL = "https://recipesimages.edgeone.app/"
-FALLBACK_IMAGE = "https://recipesimages.edgeone.app/default.jpg"
+FALLBACK_IMAGE = "https://res.cloudinary.com/dvu9cofjk/image/upload/v1775146706/image_not_found_bmltnt.png"
 # # ==============================================
 
-def upload_gujarati_recipes():
+
+def recipe_collection():
+    return datab.collection(ALL_RECIPES_COLLECTION)
+
+
+def legacy_recipe_collection():
+    return datab.collection(LEGACY_RECIPES_COLLECTION)
+
+
+def normalize_state_name(value):
+    cleaned = re.sub(r"\s+", " ", str(value or "").replace("-", " ").replace("_", " ")).strip()
+    if not cleaned:
+        return "Unknown"
+    return cleaned.title()
+
+
+def state_slug(value):
+    return re.sub(r"[^a-z0-9]+", "-", normalize_state_name(value).lower()).strip("-") or "unknown"
+
+
+def extract_state_labels(raw_value):
+    if raw_value is None:
+        return ["Unknown"]
+
+    if isinstance(raw_value, list):
+        candidates = raw_value
+    else:
+        text = str(raw_value)
+        candidates = re.split(r"[/,;|]+|\band\b", text, flags=re.IGNORECASE)
+
+    labels = []
+    seen = set()
+    for candidate in candidates:
+        label = normalize_state_name(candidate)
+        if label and label not in seen:
+            labels.append(label)
+            seen.add(label)
+
+    return labels or ["Unknown"]
+
+
+def get_recipe_doc_ref(recipe_id):
+    primary_ref = recipe_collection().document(recipe_id)
+    primary_snapshot = primary_ref.get()
+    if primary_snapshot.exists:
+        return primary_ref, primary_snapshot
+
+    legacy_ref = legacy_recipe_collection().document(recipe_id)
+    legacy_snapshot = legacy_ref.get()
+    if legacy_snapshot.exists:
+        return legacy_ref, legacy_snapshot
+
+    return primary_ref, primary_snapshot
+
+
+def stream_recipe_docs():
+    primary_docs = list(recipe_collection().stream())
+    if primary_docs:
+        return primary_docs
+    return list(legacy_recipe_collection().stream())
+
+
+def fetch_recipe_by_id(recipe_id, ensure_health=True):
+    _, recipe_snapshot = get_recipe_doc_ref(recipe_id)
+    if not recipe_snapshot.exists:
+        return None
+
+    recipe_data = recipe_snapshot.to_dict() or {}
+    if ensure_health:
+        return ensure_recipe_health_data(recipe_id, recipe_data)
+    return normalize_recipe_document(recipe_id, recipe_data)
+
+
+def fetch_state_recipe_ids(state_name):
+    normalized_state = normalize_state_name(state_name)
+    state_index_doc = datab.collection(STATE_INDEX_COLLECTION).document(state_slug(normalized_state)).get()
+
+    if state_index_doc.exists:
+        state_data = state_index_doc.to_dict() or {}
+        recipe_ids = state_data.get("recipe_ids", [])
+        if isinstance(recipe_ids, list):
+            return recipe_ids
+
+    matched_ids = []
+    for recipe_doc in stream_recipe_docs():
+        recipe_data = recipe_doc.to_dict() or {}
+        state_tags = [normalize_state_name(tag) for tag in recipe_data.get("state_tags", [])]
+        primary_state = normalize_state_name(recipe_data.get("primary_state", ""))
+        if normalized_state == primary_state or normalized_state in state_tags:
+            matched_ids.append(recipe_doc.id)
+
+    return matched_ids
+
+
+def recipe_rating_value(recipe):
+    try:
+        return float(recipe.get("ratings") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def filter_and_sort_recipes(recipes, search="", high_rated=False):
+    filtered = []
+    search_term = str(search or "").strip().lower()
+
+    for recipe in recipes:
+        name_lower = str(recipe.get("name", "")).lower()
+        if search_term and search_term not in name_lower:
+            continue
+        if high_rated and recipe_rating_value(recipe) < 4.5:
+            continue
+        filtered.append(recipe)
+
+    filtered.sort(key=lambda recipe: (str(recipe.get("name", "")).lower(), recipe.get("recipe_id", "")))
+    return filtered
+
+
+def paginate_recipe_list(recipes, limit, last_doc_id=None):
+    start_index = 0
+
+    if last_doc_id:
+        for idx, recipe in enumerate(recipes):
+            if recipe.get("recipe_id") == last_doc_id:
+                start_index = idx + 1
+                break
+
+    page = recipes[start_index:start_index + limit]
+    next_cursor = page[-1]["recipe_id"] if page else None
+    has_more = start_index + limit < len(recipes)
+    return page, next_cursor, has_more
+
+
+def get_row_value(row, possible_columns, default=""):
+    for column in possible_columns:
+        if column in row and not pd.isna(row.get(column)):
+            value = row.get(column)
+            value = str(value).strip()
+            if value and value.lower() != "nan":
+                return value
+    return default
+
+
+def load_existing_recipe_name_map():
+    if not CHECK_FOR_DUPLICATES:
+        return {}
+
+    print("Loading existing recipe names from Firestore once...")
+    existing_by_name = {}
+    for recipe_doc in recipe_collection().stream():
+        recipe_data = recipe_doc.to_dict() or {}
+        recipe_name = str(recipe_data.get("name", "")).strip().lower()
+        if recipe_name:
+            existing_by_name[recipe_name] = {
+                "id": recipe_doc.id,
+                "state_tags": recipe_data.get("state_tags", []),
+            }
+
+    print(f"Loaded {len(existing_by_name)} existing recipe names.")
+    return existing_by_name
+
+
+def commit_firestore_batch(batch, pending_writes):
+    if pending_writes <= 0:
+        return 0
+
+    batch.commit()
+    return 0
+
+
+def upload_all_recipes():
     print("=== STARTING FIRESTORE UPLOAD SCRIPT ===")
-    print(f"Reading Excel file: {CSV_FILE}")
+    print(f"Reading CSV file: {CSV_FILE}")
 
     try:
-        # Read Excel
         df = pd.read_csv(CSV_FILE)
-        print(f"Total rows in Excel: {len(df)}")
+        print(f"Total rows in CSV: {len(df)}")
 
-        # Filter only Gujarati recipes
-        df_guj = df[df['Cuisine_name'].str.contains('Gujarati', case=False, na=False)]
-        print(f"Found {len(df_guj)} Gujarati recipes after filtering.")
-
-        if df_guj.empty:
-            print("ERROR: No Gujarati recipes found. Check 'Cuisine_name' column.")
-            return
+        if df.empty:
+            print("ERROR: CSV is empty.")
+            return {
+                "status": "error",
+                "message": "CSV file is empty.",
+                "uploaded_count": 0,
+                "skipped_count": 0,
+                "state_indexes_updated": 0,
+            }
 
         uploaded_count = 0
         skipped_count = 0
+        state_index_map = {}
+        existing_by_name = load_existing_recipe_name_map()
+        batch = datab.batch()
+        pending_writes = 0
 
-        for idx, row in df_guj.iterrows():
-            original_name = row.get('name_of_Dish', 'Unknown Recipe')
-            
+        for _, row in df.iterrows():
+            original_name = get_row_value(row, ['name_of_Dish', 'TranslatedRecipeName', 'RecipeName', 'name', 'Name'], 'Unknown Recipe')
             recipe_name = clean_recipe_name(original_name)
-            image_link = make_image_url(recipe_name)
-            
-            # print(f"\nProcessing: {recipe_name}")
-            # print(f"\nProcessing1111: {uploaded_count}")
+            image_link = get_row_value(
+                row,
+                ['Image_Link', 'image_link', 'Image link', 'image', 'Image', 'image-url', 'Image URL', 'URL'],
+                FALLBACK_IMAGE
+            )
+            state_labels = extract_state_labels(
+                get_row_value(row, ['Cuisine_name', 'Cuisine', 'CuisineName', 'Region', 'State'], 'Unknown')
+            )
 
-            # Optional: skip if already exists (safety)
             if CHECK_FOR_DUPLICATES:
-                existing = datab.collection(COLLECTION_NAME)\
-                               .where('name', '==', recipe_name)\
-                               .limit(1)\
-                               .get()
+                existing = existing_by_name.get(recipe_name.lower())
                 if existing:
-                    print(f"  → Already exists in Firestore. Skipping.")
+                    existing_states = existing.get("state_tags", [])
+                    merged_states = sorted(set(existing_states + state_labels))
+
+                    if merged_states != existing_states:
+                        batch.update(recipe_collection().document(existing["id"]), {
+                            "state_tags": merged_states,
+                            "primary_state": merged_states[0] if merged_states else "Unknown"
+                        })
+                        pending_writes += 1
+                        existing["state_tags"] = merged_states
+
+                    for label in merged_states:
+                        slug = state_slug(label)
+                        state_index_map.setdefault(slug, {"state_name": label, "recipe_ids": set()})
+                        state_index_map[slug]["recipe_ids"].add(existing["id"])
+
                     skipped_count += 1
+                    if pending_writes >= 400:
+                        pending_writes = commit_firestore_batch(batch, pending_writes)
+                        batch = datab.batch()
+                        print(f"Processed {skipped_count} duplicate recipes so far...")
                     continue
 
-            # Infer ML features (same logic as before)
-            ing_str = ' '.join(row.get('Ingredients_of_Dish', [])).lower()
-            instructions_str = ' '.join(row.get('Recipe_Instructions', [])).lower()
+            ingredients = normalize_text_list(get_row_value(row, ['Ingredients_of_Dish', 'TranslatedIngredients', 'Ingredients', 'ingredients'], ''))
+            steps = normalize_text_list(get_row_value(row, ['Recipe_Instructions', 'TranslatedInstructions', 'Instructions', 'steps'], ''))
+            ing_str = ' '.join(ingredients).lower()
+            instructions_str = ' '.join(steps).lower()
 
             oil_amount = 'high' if ing_str.count('oil') > 1 else 'medium' if 'oil' in ing_str else 'low'
-            calories = random.randint(150, 600) if pd.isna(row.get('calories')) else row['calories']
+            calories = random.randint(150, 600) if pd.isna(row.get('calories')) else row.get('calories', random.randint(150, 600))
             fried = 'yes' if 'fry' in instructions_str else 'no'
             sugar = 'high' if ing_str.count('sugar') > 1 else 'medium' if 'sugar' in ing_str else 'low'
 
@@ -227,52 +426,104 @@ def upload_gujarati_recipes():
             try:
                 category = classify_recipe_health(features)
             except Exception as e:
-                print(f"  → Classification failed: {e}")
-                category = 'Moderate'  # fallback
+                print(f"Classification fallback for {recipe_name}: {e}")
+                category = 'Moderate'
 
-            # Prepare data for Firestore
             data = {
-                'recipe_id': '',  # will be auto-generated
-                'state': 'Gujarat',
+                'recipe_id': '',
                 'name': recipe_name,
                 'image_url': image_link,
-                'ingredients': row.get('Ingredients_of_Dish', []),
-                'steps': row.get('Recipe_Instructions', []),
+                'ingredients': ingredients,
+                'steps': steps,
                 'category': category,
-                'nutrition_type': row.get('Diet_Type', 'Vegetarian'),
-                'diet_type': row.get('Diet_Type', 'Vegetarian'),
-                'course': row.get('Course_name', ''),
-                'description': row.get('Discription_of_Dish', ''),
-                'ratings': row.get('Ratings_of_Dish', 4.0),
-                'prep_time': row.get('Preparation_time', ''),
-                'cook_time': row.get('Cooking_time', ''),
-                'total_time': row.get('Total_time', ''),
-                'servings': row.get('Makes', ''),
+                'nutrition_type': get_row_value(row, ['Diet_Type', 'Diet', 'DietType'], 'Vegetarian'),
+                'diet_type': get_row_value(row, ['Diet_Type', 'Diet', 'DietType'], 'Vegetarian'),
+                'course': get_row_value(row, ['Course_name', 'Course'], ''),
+                'description': get_row_value(row, ['Discription_of_Dish', 'Discrption_of_Dish', 'Description', 'TranslatedDescription'], ''),
+                'ratings': get_row_value(row, ['Ratings_of_Dish', 'Rating', 'ratings'], 4.0),
+                'prep_time': get_row_value(row, ['Preparation_time', 'Prepration_time', 'PrepTimeInMins'], ''),
+                'cook_time': get_row_value(row, ['Cooking_time', 'CookTimeInMins'], ''),
+                'total_time': get_row_value(row, ['Total_time', 'TotalTimeInMins'], ''),
+                'servings': get_row_value(row, ['Makes', 'Servings'], ''),
+                'cuisine_name': get_row_value(row, ['Cuisine_name', 'Cuisine', 'CuisineName'], ''),
+                'state_tags': state_labels,
+                'primary_state': state_labels[0] if state_labels else 'Unknown',
                 'uploaded_at': pd.Timestamp.now().isoformat()
             }
 
             data = enrich_recipe_with_health_data(data)
 
-            # Upload
-            doc_ref = datab.collection(COLLECTION_NAME).document()
-            data['recipe_id'] = doc_ref.id  # set the auto ID
-
-            doc_ref.set(data)
-            # print(f"  → Uploaded successfully (ID: {doc_ref.id})")
+            doc_ref = recipe_collection().document()
+            data['recipe_id'] = doc_ref.id
+            batch.set(doc_ref, data)
+            pending_writes += 1
             uploaded_count += 1
+            existing_by_name[recipe_name.lower()] = {
+                "id": doc_ref.id,
+                "state_tags": state_labels,
+            }
 
-        # print("\n=== UPLOAD SUMMARY ===")
-        # print(f"Total Gujarati recipes processed: {len(df_guj)}")
-        # print(f"Successfully uploaded: {uploaded_count}")
-        # print(f"Skipped (already exists): {skipped_count}")
-        print("Done.")
+            for label in state_labels:
+                slug = state_slug(label)
+                state_index_map.setdefault(slug, {"state_name": label, "recipe_ids": set()})
+                state_index_map[slug]["recipe_ids"].add(doc_ref.id)
+
+            if pending_writes >= 400:
+                pending_writes = commit_firestore_batch(batch, pending_writes)
+                batch = datab.batch()
+                print(f"Uploaded {uploaded_count} recipes so far...")
+
+        pending_writes = commit_firestore_batch(batch, pending_writes)
+
+        for slug, state_data in state_index_map.items():
+            state_doc_ref = datab.collection(STATE_INDEX_COLLECTION).document(slug)
+            existing_doc = state_doc_ref.get()
+            existing_ids = []
+            if existing_doc.exists:
+                existing_ids = existing_doc.to_dict().get("recipe_ids", [])
+
+            merged_ids = sorted(set(existing_ids) | state_data["recipe_ids"])
+            state_doc_ref.set({
+                "state_name": state_data["state_name"],
+                "state_slug": slug,
+                "recipe_count": len(merged_ids),
+                "recipe_ids": merged_ids,
+                "updated_at": pd.Timestamp.now().isoformat()
+            })
+
+        print(f"Upload complete. Uploaded: {uploaded_count}, Skipped duplicates: {skipped_count}")
+        return {
+            "status": "success",
+            "message": "Recipes uploaded successfully.",
+            "uploaded_count": uploaded_count,
+            "skipped_count": skipped_count,
+            "state_indexes_updated": len(state_index_map),
+            "total_rows": len(df),
+        }
 
     except FileNotFoundError:
         print(f"ERROR: File not found → {CSV_FILE}")
-        print("Make sure the Excel file is in the same folder as this script.")
+        return {
+            "status": "error",
+            "message": f"CSV file not found: {CSV_FILE}",
+            "uploaded_count": 0,
+            "skipped_count": 0,
+            "state_indexes_updated": 0,
+        }
     except Exception as e:
         print("Unexpected error during upload:")
         print(str(e))
+        return {
+            "status": "error",
+            "message": str(e),
+            "uploaded_count": 0,
+            "skipped_count": 0,
+            "state_indexes_updated": 0,
+        }
+
+
+def upload_gujarati_recipes():
+    return upload_all_recipes()
 # #....................................................................................   
 
 def clean_recipe_name(name: str) -> str:
@@ -299,24 +550,7 @@ def clean_recipe_name(name: str) -> str:
     return cleaned
 
 def make_image_url(recipe_name: str) -> str:
-    if not isinstance(recipe_name, str) or not recipe_name.strip():
-        return ""
-
-    name = recipe_name.strip()
-
-    # ---- CLEANING RULES (keeps meaning intact) ----
-    name = name.replace("/", " ")      # remove slashes
-    name = name.replace("\\", " ")     # remove backslashes
-    name = name.replace("_", " ")      # remove underscores
-    name = re.sub(r"\s+", " ", name)   # collapse multiple spaces
-
-    # KEEP DASH "-" EXACTLY AS IS (your image also has it)
-    # Now safely encode spaces -> %20 etc.
-    print(f"image names ${name}")
-    safe_name = urllib.parse.quote(name)
-    print(f"new11111 image names ${safe_name}")
-
-    return f"{BASE_IMAGE_URL}{safe_name}.jpg"
+    return FALLBACK_IMAGE
 
 
 def enrich_recipe_with_health_data(recipe_data):
@@ -395,7 +629,8 @@ def ensure_recipe_health_data(recipe_id, recipe_data):
 
     enriched = enrich_recipe_with_health_data(dict(normalized_recipe))
     enriched["recipe_id"] = recipe_id
-    datab.collection("recipes").document(recipe_id).update({
+    recipe_ref, _ = get_recipe_doc_ref(recipe_id)
+    recipe_ref.update({
         "nutrition": enriched["nutrition"],
         "nutrition_coverage": enriched["nutrition_coverage"],
         "nutrition_notes": enriched["nutrition_notes"],
@@ -439,7 +674,7 @@ def get_healthy_recommendations(limit=5, exclude_recipe_id=None):
     recommendations = []
     seen_ids = set()
 
-    healthy_query = datab.collection("recipes").where("health_label", "==", "Healthy").limit(limit * 3).stream()
+    healthy_query = recipe_collection().where("health_label", "==", "Healthy").limit(limit * 3).stream()
 
     for doc in healthy_query:
         if doc.id == exclude_recipe_id or doc.id in seen_ids:
@@ -460,7 +695,7 @@ def get_healthy_recommendations(limit=5, exclude_recipe_id=None):
             return recommendations
 
     if len(recommendations) < limit:
-        fallback_docs = datab.collection("recipes").stream()
+        fallback_docs = stream_recipe_docs()
         for doc in fallback_docs:
             if doc.id == exclude_recipe_id or doc.id in seen_ids:
                 continue
@@ -547,11 +782,10 @@ def build_dashboard_summary(user_id):
 
 
 def store_cooked_recipe(user_id, recipe_id):
-    recipe_snapshot = datab.collection("recipes").document(recipe_id).get()
-    if not recipe_snapshot.exists:
+    recipe = fetch_recipe_by_id(recipe_id, ensure_health=True)
+    if not recipe:
         return None, {"error": "Recipe not found"}
 
-    recipe = ensure_recipe_health_data(recipe_id, recipe_snapshot.to_dict() or {})
     user_ref, user_profile = fetch_user_profile(user_id)
 
     label = recipe.get("health_label", "Moderate")
@@ -624,7 +858,7 @@ def store_cooked_recipe(user_id, recipe_id):
 
 def backfill_recipe_health_data(limit=None):
     updated = 0
-    for recipe_doc in datab.collection("recipes").stream():
+    for recipe_doc in stream_recipe_docs():
         recipe_data = recipe_doc.to_dict() or {}
         ensure_recipe_health_data(recipe_doc.id, recipe_data)
         updated += 1
@@ -637,6 +871,13 @@ def backfill_recipe_health_data(limit=None):
 @app.route('/recipes-page')
 def recipes_page():
     return render_template('recipes.html')
+
+
+@app.route('/admin/upload-all-recipes', methods=['POST'])
+def admin_upload_all_recipes():
+    result = upload_all_recipes()
+    status_code = 200 if result.get("status") == "success" else 500
+    return jsonify(result), status_code
 
 
 @app.route('/admin/backfill-health-data', methods=['POST'])
@@ -654,7 +895,7 @@ def get_recipes():
     print("[DEBUG] /get-recipes called with params:", dict(request.args))
 
     try:
-        state = request.args.get('state', 'Gujarat')
+        state = request.args.get('state', 'All')
         search = request.args.get('search', '').strip().lower()
         high_rated = request.args.get('high_rated', 'false').lower() == 'true'
         limit = int(request.args.get('limit', 20))
@@ -662,60 +903,37 @@ def get_recipes():
 
         print(f"[DEBUG] Filters  state={state}, search='{search}', high_rated={high_rated}, limit={limit}, last_doc_id={last_doc_id}")
 
-        query = datab.collection('recipes')
+        candidate_recipes = []
 
         if state and state != 'All':
-            print(f"[DEBUG] Adding where state == {state}")
-            query = query.where('state', '==', state)
+            state_recipe_ids = fetch_state_recipe_ids(state)
+            print(f"[DEBUG] Loaded {len(state_recipe_ids)} indexed recipe IDs for state={state}")
+            for recipe_id in state_recipe_ids:
+                recipe = fetch_recipe_by_id(recipe_id, ensure_health=True)
+                if recipe:
+                    candidate_recipes.append(recipe)
+        else:
+            for recipe_doc in stream_recipe_docs():
+                candidate_recipes.append(
+                    ensure_recipe_health_data(recipe_doc.id, recipe_doc.to_dict() or {})
+                )
 
-        print("[DEBUG] Adding order_by('name')")
-        query = query.order_by('name')
+        filtered_recipes = filter_and_sort_recipes(candidate_recipes, search=search, high_rated=high_rated)
+        recipe_list, last_returned_id, has_more = paginate_recipe_list(
+            filtered_recipes,
+            limit=limit,
+            last_doc_id=last_doc_id
+        )
 
-        if last_doc_id:
-            print(f"[DEBUG] Starting after document: {last_doc_id}")
-            last_doc_ref = datab.collection('recipes').document(last_doc_id)
-            last_doc = last_doc_ref.get()
-            if last_doc.exists:
-                query = query.start_after(last_doc)
-            else:
-                print(f"[WARN] last_doc_id {last_doc_id} does not exist - starting from beginning")
-
-        print(f"[DEBUG] Applying limit({limit})")
-        query = query.limit(limit)
-
-        print("[DEBUG] Executing query.stream()...")
-        docs = query.stream()
-
-        recipe_list = []
-        last_returned_id = None
-        count = 0
-
-        for doc in docs:
-            count += 1
-            data = normalize_recipe_document(doc.id, doc.to_dict() or {})
-            print(f"[DEBUG] Processing doc {count}: ID={doc.id}")
-
-            name_lower = str(data.get('name', '')).lower()
-            if search and search not in name_lower:
-                continue
-
-            if high_rated:
-                try:
-                    rating = float(data.get('ratings') or 0)
-                    if rating < 4.5:
-                        continue
-                except (ValueError, TypeError):
-                    print(f"[WARN] Invalid ratings in doc {doc.id} - skipping")
-                    continue
-            recipe_list.append(data)
-            last_returned_id = doc.id
-
-        print(f"[DEBUG] Query finished. Returned {len(recipe_list)} recipes. Last ID: {last_returned_id}")
+        print(
+            f"[DEBUG] Query finished. Matched {len(filtered_recipes)} recipes. "
+            f"Returned {len(recipe_list)} recipes. Last ID: {last_returned_id}"
+        )
 
         return jsonify({
             'recipes': recipe_list,
             'last_doc_id': last_returned_id,
-            'has_more': len(recipe_list) == limit and last_returned_id is not None,
+            'has_more': has_more,
             'total_returned': len(recipe_list)
         }), 200
 
@@ -737,6 +955,109 @@ def get_recipes():
             'message': str(e)
         }), 500
 
+
+@app.route('/generate-recipe', methods=['POST'])
+def generate_recipe_api():
+    try:
+        data = request.get_json(silent=True) or {}
+        ingredients = parse_requested_ingredients(data.get("ingredients", []))
+
+        if not ingredients:
+            return jsonify({"error": "No ingredients provided"}), 400
+
+        display_ingredients = [ingredient.title() for ingredient in ingredients]
+        primary = display_ingredients[0]
+        nutrition_analysis = analyze_recipe_nutrition(display_ingredients)
+        cooking_time = f"{15 + min(len(display_ingredients) * 3, 18)} minutes"
+
+        recipe = {
+            "name": f"{primary} Smart Recipe",
+            "ingredients": display_ingredients,
+            "steps": [
+                f"Wash and prep {', '.join(display_ingredients)} so everything is ready before heating the pan.",
+                "Warm a non-stick pan on medium heat and add one teaspoon oil, ghee, or water for a lighter version.",
+                f"Add {primary} first, then add the remaining ingredients and cook while stirring for 4 to 6 minutes.",
+                "Season with salt, turmeric, cumin, chilli, or your preferred masala and mix until the ingredients are coated.",
+                "Cover and cook on low heat until the ingredients turn tender, adding a splash of water only if needed.",
+                "Taste, adjust seasoning, garnish with coriander or lemon, and serve warm with roti, rice, or salad."
+            ],
+            "cooking_time": cooking_time,
+            "health_label": nutrition_analysis.get("health_label", "Moderate"),
+            "health_score": nutrition_analysis.get("health_score", 0),
+            "nutrition": nutrition_analysis.get("totals", {}),
+            "nutrition_notes": nutrition_analysis.get("notes", []),
+        }
+
+        return jsonify(recipe)
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": "Server error occurred"}), 500
+
+
+@app.route('/generate-recipe-legacy', methods=['POST'])
+def generate_recipe():
+    try:
+        data = request.get_json()
+        ingredients = data.get("ingredients", [])
+
+        if not ingredients:
+            return jsonify({"error": "No ingredients provided"}), 400
+
+        prompt = f"""
+        You are a professional chef.
+
+        Create a detailed recipe using: {', '.join(ingredients)}
+
+        Include:
+        Recipe Name
+        Ingredients
+        Step-by-step instructions (minimum 5 steps)
+        Cooking time
+        """
+
+        result = generator(
+            prompt,
+            max_length=300,
+            temperature=0.7
+        )
+
+        text = result[0]['generated_text']
+
+        # 🔥 FORCE CLEAN OUTPUT (no JSON dependency)
+        recipe = {
+            "name": f"{ingredients[0].capitalize()} Recipe",
+            "ingredients": ingredients,
+            "steps": [],
+            "cooking_time": "15-20 minutes"
+        }
+
+        lines = text.split("\n")
+
+        steps = []
+        for line in lines:
+            line = line.strip()
+            if len(line) > 25:
+                steps.append(line)
+
+        # fallback if model fails
+        if len(steps) < 3:
+            steps = [
+                f"Wash and cut {', '.join(ingredients)} into small pieces",
+                "Heat oil in a pan on medium flame",
+                "Add ingredients and sauté for 5 minutes",
+                "Add salt and spices, mix well",
+                "Cook for 10 minutes and stir occasionally",
+                "Serve hot"
+            ]
+
+        recipe["steps"] = steps[:6]
+
+        return jsonify(recipe)
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": "Server error occurred"}), 500
 
 def normalize_ingredient_text(value):
     if value is None:
@@ -845,7 +1166,7 @@ def recommend():
             "message": "Add at least one ingredient to search recipes."
         }), 200
 
-    recipes = datab.collection('recipes').stream()
+    recipes = stream_recipe_docs()
     results = []
 
     for recipe in recipes:
@@ -976,9 +1297,8 @@ def get_favorites(user_id):
         # Fetch full recipes from Firestore
         fav_recipes = []
         for rid in favorite_ids:
-            recipe_snap = datab.collection('recipes').document(rid).get()
-            if recipe_snap.exists:
-                data = normalize_recipe_document(rid, recipe_snap.to_dict() or {})
+            data = fetch_recipe_by_id(rid, ensure_health=False)
+            if data:
                 fav_recipes.append(data)
             else:
                 print(f"[WARN] Favorite recipe ID {rid} not found in Firestore")
@@ -996,8 +1316,9 @@ def get_favorites(user_id):
 # # Recipe detail page
 @app.route('/recipe-detail/<recipe_id>')
 def recipe_detail(recipe_id):
-    recipe_snapshot = datab.collection('recipes').document(recipe_id).get()
-    recipe = ensure_recipe_health_data(recipe_id, recipe_snapshot.to_dict() or {})
+    recipe = fetch_recipe_by_id(recipe_id, ensure_health=True)
+    if not recipe:
+        return render_template('recipe.html', recipe=None), 404
     return render_template('recipe.html', recipe=recipe)
 
 
@@ -1136,14 +1457,16 @@ def get_history(user_id):
     hist_list = []
     for hist in history:
         data = hist.to_dict()
-        recipe_snap = datab.collection('recipes').document(data['recipe_id']).get()
-        recipe = normalize_recipe_document(data['recipe_id'], recipe_snap.to_dict() or {})
+        recipe = fetch_recipe_by_id(data['recipe_id'], ensure_health=False)
         data['recipe'] = recipe
         hist_list.append(data)
     return jsonify(hist_list), 200
 
 if __name__ == '__main__':
-    # upload_gujarati_recipes()
+    if '--upload-recipes' in sys.argv:
+        print("Uploading all recipes from CSV to Firestore...")
+        # print(upload_all_recipes())
+        sys.exit(0)
     print("Starting Flask server...")
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5500)
     

@@ -322,6 +322,9 @@
             <a href="{{ url_for('recipes_page') }}">Recipes</a>
           </li>
           <li>
+            <a href="{{ url_for('generate_recipe_page') }}">Generate Recipe</a>
+          </li>
+          <li>
             <a href="{{ url_for('history_page') }}">History</a>
           </li>
           <li>
@@ -380,17 +383,6 @@
           <div class="ingredient-assist">
             <span>Press Enter to add quickly.</span>
             <span id="ingredient-counter">0 ingredients selected</span>
-          </div>
-
-          <div style="margin-top: 1rem;">
-            <label for="recipe-demand"><strong>Tell RecipeGenie what you want</strong></label>
-            <input
-              type="text"
-              id="recipe-demand"
-              placeholder="Example: I want a healthy high protein Gujarati recipe"
-              style="width: 100%; margin-top: 0.5rem; border: 1px solid #ebd5bf; border-radius: 18px; padding: 0.95rem 1rem; font-size: 1rem; background: #fffdf9;"
-            />
-            <p style="margin-top: 0.5rem; margin-bottom: 0;">NLP will use this to understand if you want healthy, moderate, or richer food.</p>
           </div>
 
           <div class="tags" id="tags-container"></div>

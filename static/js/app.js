@@ -146,50 +146,6 @@ if (logoutBtn) {
 }
 
 
-// upload imagee
-
-// function uploadImage(){
-
-//     const input = document.getElementById("imageInput")
-//     const file = input.files[0]
-
-//     if(!file){
-//         alert("Select an image first")
-//         return
-//     }
-
-//     const preview = document.getElementById("preview")
-//     preview.src = URL.createObjectURL(file)
-
-//     const formData = new FormData()
-//     formData.append("image", file)
-
-//     fetch("/detect",{
-//         method:"POST",
-//         body:formData
-//     })
-//     .then(res=>res.json())
-//     .then(data=>{
-
-//         const resultDiv = document.getElementById("results")
-
-//         resultDiv.innerHTML = ""
-
-//         if(data.detected_ingredients.length === 0){
-//             resultDiv.innerHTML = "No ingredients detected"
-//             return
-//         }
-
-//         data.detected_ingredients.forEach(item=>{
-//             const p = document.createElement("p")
-//             p.innerText = item.ingredient + " (" + item.confidence + ")"
-//             resultDiv.appendChild(p)
-//         })
-
-//     })
-// }
-// Gujarat Smart Recipe Recommendation System - JavaScript
-
 // Mobile menu toggle
 const hamburger = document.querySelector('.hamburger');
 const navMenu = document.querySelector('.nav-menu');
@@ -450,22 +406,7 @@ if (findBtn) {
 
   });
 }
-// function createRecipeCard(recipe) {
-//   const card = document.createElement('div');
-//   card.classList.add('recipe-card');
-//   card.innerHTML = `
-//     <img src="/static/images/${recipe.name_of_Dish}.jpg" alt="${recipe.name_of_Dish}" onerror="this.src='placeholder.jpg'">
-//     <h3>${recipe.name_of_Dish}</h3>
-//     <span class="badge ${recipe.category.toLowerCase().replace(' ', '-')}">${recipe.category}</span>
-//     <div class="match-bar"><div class="progress" style="width: ${recipe.matching_score}%;"></div></div>
-//     <span class="match-text">${recipe.matching_score}% Match</span>
-//     <div class="buttons">
-//       <button class="btn primary cooked-btn" data-recipe-id="${recipe.recipe_id}">Cook This</button>
-//       <a href="/recipe?id=${recipe.recipe_id}" class="btn primary">View Full Recipe</a>
-//     </div>
-//   `;
-//   return card;
-// }
+
 
 // Cooked buttons
 document.addEventListener('click', async e => {
@@ -597,29 +538,6 @@ let lastRecipeId = null;
 let isLoading = false;
 let hasMore = true;
 
-// Create a single recipe card
-// function createRecipeCard(recipe) {
-//   const card = document.createElement('div');
-//   // const imgpath = https://recipe-images.edgeone.app/Kesar_Peda_Recipe_14_400x320.jpg
-//   //  <img src="/static/images/${recipe.name.replace(/ /g, '_')}.jpg" alt="${recipe.name}" 
-//   //        onerror="this.src='https://via.placeholder.com/300x180?text=${encodeURIComponent(recipe.name)}'"></img>
-//   card.classList.add('recipe-card');
-//   card.innerHTML = `
-//     <img src="${recipe.image_url}" alt="${recipe.name}" 
-//          onerror="this.src='https://recipesimages.edgeone.app/default.jpg?text=${encodeURIComponent(recipe.name)}'">
-//     <h3>${recipe.name}</h3>
-//     <span class="badge ${recipe.category?.toLowerCase() || 'moderate'}">${recipe.category || 'Moderate'}</span>
-//     <p>Rating: ${recipe.ratings || 'N/A'}</p>
-//     <div class="buttons">
-//       <button class="like-btn ${recipe.isFavorite ? 'liked' : ''}" data-recipe-id="${recipe.recipe_id}">
-//         <i class="fas fa-heart"></i> ${recipe.isFavorite ? 'Liked' : 'Like'}
-//       </button>
-//       <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">Cook This</a>
-//     </div>
-//   `;
-//   return card;
-// }
-
 function createRecipeCard(recipe) {
 
   const card = document.createElement('div');
@@ -686,72 +604,6 @@ function createRecipeCard(recipe) {
 
   return card;
 }
-
-// Load recipes with pagination
-// async function loadRecipes(reset = false) {
-//   if (isLoading || !hasMore) return;
-//   isLoading = true;
-
-//   const loading = document.getElementById('loading');
-//   const noMore = document.getElementById('no-more');
-
-//   if (loading) loading.style.display = 'block';
-//   if (noMore) noMore.style.display = 'none';
-
-//   const search = document.getElementById('search-input')?.value || '';
-//   const state = document.getElementById('state-select')?.value || 'All';
-//   const highRated = document.getElementById('high-rated')?.checked || false;
-
-//   let url = `/get-recipes?state=${encodeURIComponent(state)}&search=${encodeURIComponent(search)}&high_rated=${highRated}&limit=50`;
-//   if (!reset && lastRecipeId) {
-//     url += `&last_doc_id=${encodeURIComponent(lastRecipeId)}`;
-//   }
-
- 
-//   try {
-//     const res = await fetch(url);
-//     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-//     const data = await res.json();
-
-//     console.log("Received from /get-recipes:", data);
-
-//     const grid = document.querySelector('.recipe-grid');
-
-//     if (grid) {
-//       grid.innerHTML += `
-//       <p style="color:red; text-align:center;">
-//         Error loading recipes. Please try again.
-//       </p>
-//       `;
-//     }
-//     if (reset) {
-//       grid.innerHTML = '';
-//       lastRecipeId = null;
-//       hasMore = true;
-//     }
-
-//     data.recipes.forEach(recipe => {
-//       grid.appendChild(createRecipeCard(recipe));
-//     });
-
-//     lastRecipeId = data.last_doc_id;
-//     hasMore = data.has_more === true;
-
-//     if (!hasMore && grid.children.length === 0) {
-//       grid.innerHTML = '<p style="text-align:center; padding:3rem;">No recipes found matching your criteria.</p>';
-//     } else if (!hasMore) {
-//       noMore.style.display = 'block';
-//     }
-
-//   } catch (err) {
-//     console.error('Error loading recipes:', err);
-//     document.querySelector('.recipe-grid').innerHTML += '<p style="color:red; text-align:center;">Error loading recipes. Please try again.</p>';
-//   } finally {
-//     isLoading = false;
-//     if (loading) loading.style.display = 'none';
-//   }
-// }
 
 // ==================================
 
@@ -841,6 +693,117 @@ async function loadRecipes(reset = false) {
 }
 
 // =======================
+
+function renderGeneratedRecipe(data) {
+  const nutrition = data.nutrition || {};
+  const notes = Array.isArray(data.nutrition_notes) ? data.nutrition_notes : [];
+  return `
+    <article class="generated-recipe-card">
+      <div class="generated-recipe-header">
+        <div>
+          <span class="generate-eyebrow">Generated recipe</span>
+          <h2>${data.name || 'Smart Recipe'}</h2>
+          <p>${data.cooking_time || '20 minutes'} cooking time</p>
+        </div>
+        <span class="generated-health-badge">${data.health_label || 'Moderate'} &bull; ${Math.round(data.health_score || 0)}</span>
+      </div>
+
+      <div class="generated-recipe-grid">
+        <section>
+          <h3>Ingredients</h3>
+          <ul class="generated-list">
+            ${(data.ingredients || []).map(item => `<li>${item}</li>`).join('')}
+          </ul>
+        </section>
+        <section>
+          <h3>Nutrition estimate</h3>
+          <div class="generated-nutrition">
+            <span><strong>${Math.round(nutrition.calories || 0)}</strong> kcal</span>
+            <span><strong>${Math.round(nutrition.protein || 0)}g</strong> protein</span>
+            <span><strong>${Math.round(nutrition.fiber || 0)}g</strong> fiber</span>
+            <span><strong>${Math.round(nutrition.fat || 0)}g</strong> fat</span>
+          </div>
+        </section>
+      </div>
+
+      <section>
+        <h3>Cooking steps</h3>
+        <ol class="generated-steps">
+          ${(data.steps || []).map(step => `<li>${step}</li>`).join('')}
+        </ol>
+      </section>
+
+      ${notes.length ? `<div class="generated-note">${notes.slice(0, 2).join(' ')}</div>` : ''}
+    </article>
+  `;
+}
+
+
+async function generateRecipe() {
+    const input = document.getElementById("ingredients")?.value?.trim() || "";
+    const output = document.getElementById("output");
+
+    if (!input) {
+        if (output) {
+          output.innerHTML = '<div class="generated-empty"><h2>Add ingredients first</h2><p>Example: tomato, onion, paneer, rice</p></div>';
+        }
+        return;
+    }
+
+    const ingredients = input.split(",").map(i => i.trim()).filter(Boolean);
+    output.innerHTML = '<div class="generated-empty"><h2>Generating your recipe...</h2><p>RecipeGenie is building steps and nutrition details.</p></div>';
+
+    output.innerHTML = "⏳ Generating recipe...";
+
+    try {
+        output.innerHTML = '<div class="generated-empty"><h2>Generating your recipe...</h2><p>RecipeGenie is building steps and nutrition details.</p></div>';
+        const res = await fetch('/generate-recipe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ingredients })
+        });
+
+        if (!res.ok) {
+            throw new Error("Server error");
+        }
+
+        const data = await res.json();
+
+        if (data.error) {
+            output.innerHTML = "❌ " + data.error;
+            return;
+        }
+
+        output.innerHTML = `
+            <h2>${data.name}</h2>
+
+            <h3>🧾 Ingredients:</h3>
+            <ul>
+                ${data.ingredients.map(i => `<li>${i}</li>`).join("")}
+            </ul>
+
+            <h3>👨‍🍳 Steps:</h3>
+            <ol>
+                ${data.steps.map(s => `<li>${s}</li>`).join("")}
+            </ol>
+
+            <p><b>⏱ Cooking Time:</b> ${data.cooking_time}</p>
+        `;
+
+        output.innerHTML = renderGeneratedRecipe(data);
+
+    } catch (err) {
+        console.error(err);
+        output.innerHTML = "❌ Failed to connect to server";
+    }
+}
+
+window.generateRecipe = generateRecipe;
+
+document.getElementById('generate-recipe-form')?.addEventListener('submit', event => {
+  event.preventDefault();
+  generateRecipe();
+});
 
 async function loadHealthReport(){
 

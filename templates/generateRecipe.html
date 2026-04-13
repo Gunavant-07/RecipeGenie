@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>🍳 Recipe AI Generator</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            text-align: center;
+        }
+
+        .container {
+            margin-top: 50px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        input {
+            width: 300px;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-left: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+
+        #output {
+            margin: 30px auto;
+            width: 60%;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        ul, ol {
+            margin-left: 20px;
+        }
+
+        h2 {
+            color: #444;
+        }
+
+        h3 {
+            margin-top: 15px;
+            color: #555;
+        }
+    </style>
+</head>
+<body class="generate-page">
+    <header>
+        <nav class="navbar">
+            <div class="logo">RecipeGenie</div>
+            <div class="hamburger"><i class="fas fa-bars"></i></div>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('home') }}">Home</a></li>
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('recipes_page') }}">Recipes</a></li>
+                <li><a href="{{ url_for('generate_recipe_page') }}">Generate Recipe</a></li>
+                <li><a href="{{ url_for('history_page') }}">History</a></li>
+                <li><a href="{{ url_for('health_page') }}">Health Tracker</a></li>
+                <li class="login-link"><a href="{{ url_for('login_page') }}">Login</a></li>
+                <li class="register-link"><a href="{{ url_for('register_page') }}">Register</a></li>
+                <li class="logout-link" style="display:none;"><a href="{{ url_for('home') }}" id="logout">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="generate-shell">
+        <section class="generate-hero">
+            <div>
+                <span class="generate-eyebrow">AI cooking assistant</span>
+                <h1>Generate a smart recipe from ingredients you already have.</h1>
+                <p>Type ingredients like tomato, onion, paneer, rice and RecipeGenie will create a simple cooking plan with nutrition and health insight.</p>
+            </div>
+            <form id="generate-recipe-form" class="generate-card">
+                <label for="ingredients">Your ingredients</label>
+                <textarea id="ingredients" rows="5" placeholder="Example: tomato, onion, paneer, rice"></textarea>
+                <button type="submit" class="btn primary" id="generate-recipe-btn">Generate Recipe</button>
+                <p class="generate-hint">Tip: separate ingredients with commas for better results.</p>
+            </form>
+        </section>
+
+        <section id="output" class="generated-recipe-output" aria-live="polite">
+            <div class="generated-empty">
+                <h2>Your generated recipe will appear here</h2>
+                <p>Add ingredients above and start generating a cooking plan.</p>
+            </div>
+        </section>
+    </main>
+
+    <div class="container" style="display:none;">
+        <h1>🍳 Recipe Generator (FREE AI)</h1>
+
+        <input 
+            type="text" 
+            id="legacy-ingredients" 
+            placeholder="Enter ingredients (e.g., carrot, cucumber)"
+        >
+
+        <button onclick="generateRecipe()">Generate</button>
+
+        <div id="legacy-output"></div>
+    </div>
+
+    <!-- 🔥 JS File -->
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</body>
+</html>
