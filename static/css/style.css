@@ -640,6 +640,75 @@ input[type="text"] {
   border: 1px solid rgba(0,0,0,0.05);
 }
 
+/* Polished navigation */
+.navbar {
+  background: rgba(255, 253, 248, 0.92);
+  border: 1px solid rgba(255, 153, 51, 0.16);
+  border-left: none;
+  border-right: none;
+  backdrop-filter: blur(18px);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #1f3c1d;
+  letter-spacing: -0.02em;
+}
+
+.logo::before {
+  content: "";
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 35% 35%, #fff7d7 0 18%, transparent 19%),
+    linear-gradient(135deg, var(--primary), var(--secondary));
+  box-shadow: 0 10px 24px rgba(19, 136, 8, 0.16);
+}
+
+.nav-menu {
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.nav-menu a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  color: #365c2f;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-menu a:hover,
+.nav-menu a.active {
+  color: #fff;
+  background: linear-gradient(135deg, #ef7a44 0%, #d95d39 100%);
+  transform: translateY(-1px);
+}
+
+.logout-link a {
+  background: #fff1ec;
+  color: #b64530;
+}
+
+@media (max-width: 768px) {
+  .nav-menu {
+    top: 66px;
+    padding: 0.8rem;
+    gap: 0.35rem;
+  }
+
+  .nav-menu a {
+    width: calc(100% - 1rem);
+    justify-content: center;
+    margin: 0 auto;
+  }
+}
+
 /* Responsive app shell and generate recipe page */
 .generate-page {
   min-height: 100vh;

@@ -275,13 +275,32 @@ def recipe_rating_value(recipe):
         return 0.0
 
 
-def filter_and_sort_recipes(recipes, search="", high_rated=False):
+def normalize_cuisine_text(value):
+    return re.sub(r"\s+", " ", str(value or "").strip().lower())
+
+
+def recipe_matches_cuisine(recipe, cuisine):
+    selected = normalize_cuisine_text(cuisine)
+    if not selected or selected == "all":
+        return True
+
+    cuisine_fields = [
+        recipe.get("cuisine_name", ""),
+        recipe.get("primary_state", ""),
+        " ".join(recipe.get("state_tags", [])) if isinstance(recipe.get("state_tags"), list) else recipe.get("state_tags", ""),
+    ]
+    return any(selected in normalize_cuisine_text(field) for field in cuisine_fields)
+
+
+def filter_and_sort_recipes(recipes, search="", high_rated=False, cuisine="All"):
     filtered = []
     search_term = str(search or "").strip().lower()
 
     for recipe in recipes:
         name_lower = str(recipe.get("name", "")).lower()
         if search_term and search_term not in name_lower:
+            continue
+        if not recipe_matches_cuisine(recipe, cuisine):
             continue
         if high_rated and recipe_rating_value(recipe) < 4.5:
             continue
@@ -896,12 +915,13 @@ def get_recipes():
 
     try:
         state = request.args.get('state', 'All')
+        cuisine = request.args.get('cuisine', 'All')
         search = request.args.get('search', '').strip().lower()
         high_rated = request.args.get('high_rated', 'false').lower() == 'true'
         limit = int(request.args.get('limit', 20))
         last_doc_id = request.args.get('last_doc_id')
 
-        print(f"[DEBUG] Filters  state={state}, search='{search}', high_rated={high_rated}, limit={limit}, last_doc_id={last_doc_id}")
+        print(f"[DEBUG] Filters  state={state}, cuisine={cuisine}, search='{search}', high_rated={high_rated}, limit={limit}, last_doc_id={last_doc_id}")
 
         candidate_recipes = []
 
@@ -909,16 +929,16 @@ def get_recipes():
             state_recipe_ids = fetch_state_recipe_ids(state)
             print(f"[DEBUG] Loaded {len(state_recipe_ids)} indexed recipe IDs for state={state}")
             for recipe_id in state_recipe_ids:
-                recipe = fetch_recipe_by_id(recipe_id, ensure_health=True)
+                recipe = fetch_recipe_by_id(recipe_id, ensure_health=False)
                 if recipe:
                     candidate_recipes.append(recipe)
         else:
             for recipe_doc in stream_recipe_docs():
                 candidate_recipes.append(
-                    ensure_recipe_health_data(recipe_doc.id, recipe_doc.to_dict() or {})
+                    normalize_recipe_document(recipe_doc.id, recipe_doc.to_dict() or {})
                 )
 
-        filtered_recipes = filter_and_sort_recipes(candidate_recipes, search=search, high_rated=high_rated)
+        filtered_recipes = filter_and_sort_recipes(candidate_recipes, search=search, high_rated=high_rated, cuisine=cuisine)
         recipe_list, last_returned_id, has_more = paginate_recipe_list(
             filtered_recipes,
             limit=limit,
@@ -1071,6 +1091,36 @@ def normalize_ingredient_text(value):
     return text
 
 
+INGREDIENT_MATCH_STOPWORDS = {
+    "and", "or", "with", "without", "fresh", "chopped", "finely", "roughly",
+    "sliced", "diced", "minced", "grated", "crushed", "small", "medium",
+    "large", "cup", "cups", "tbsp", "tablespoon", "tablespoons", "tsp",
+    "teaspoon", "teaspoons", "gram", "grams", "g", "kg", "ml", "liter",
+    "litre", "pinch", "taste", "as", "required", "optional", "for",
+    "to", "of", "in", "the", "a", "an", "pieces", "piece", "powder"
+}
+
+
+def ingredient_tokens(value):
+    normalized = normalize_ingredient_text(value)
+    base_tokens = {
+        token
+        for token in normalized.split()
+        if token and token not in INGREDIENT_MATCH_STOPWORDS and not token.isdigit()
+    }
+
+    expanded_tokens = set(base_tokens)
+    for token in base_tokens:
+        if token.endswith("ies") and len(token) > 3:
+            expanded_tokens.add(f"{token[:-3]}y")
+        if token.endswith("es") and len(token) > 3:
+            expanded_tokens.add(token[:-2])
+        if token.endswith("s") and len(token) > 3:
+            expanded_tokens.add(token[:-1])
+
+    return expanded_tokens
+
+
 def parse_requested_ingredients(payload):
     if payload is None:
         return []
@@ -1110,22 +1160,21 @@ def recipe_contains_ingredient(requested_ingredient, recipe_ingredient):
     if not requested or not available:
         return False
 
-    if requested == available:
+    requested_tokens = ingredient_tokens(requested)
+    available_tokens = ingredient_tokens(available)
+
+    if not requested_tokens or not available_tokens:
+        return False
+
+    if requested_tokens.issubset(available_tokens):
         return True
 
-    if requested in available or available in requested:
-        return True
+    if len(requested_tokens) == 1:
+        requested_word = next(iter(requested_tokens))
+        return requested_word in available_tokens
 
-    requested_tokens = set(requested.split())
-    available_tokens = set(available.split())
-
-    if requested_tokens and requested_tokens.issubset(available_tokens):
-        return True
-
-    if len(requested_tokens) == 1 and requested_tokens.intersection(available_tokens):
-        return True
-
-    return False
+    overlap = requested_tokens.intersection(available_tokens)
+    return len(overlap) >= max(2, len(requested_tokens) - 1)
 
 
 def find_recipe_matches(recipe_ingredients, requested_ingredients):
@@ -1145,6 +1194,14 @@ def find_recipe_matches(recipe_ingredients, requested_ingredients):
     missing = [ingredient for ingredient in requested_ingredients if ingredient not in matched]
 
     return matched, missing
+
+
+def required_ingredient_match_count(requested_count):
+    if requested_count <= 1:
+        return 1
+    if requested_count <= 3:
+        return 1
+    return max(2, requested_count // 2)
 
 
 @app.route('/recommend', methods=['POST'])
@@ -1168,20 +1225,21 @@ def recommend():
 
     recipes = stream_recipe_docs()
     results = []
+    requested_count = len(requested_ingredients)
+    minimum_required_matches = required_ingredient_match_count(requested_count)
 
     for recipe in recipes:
-        data = ensure_recipe_health_data(recipe.id, recipe.to_dict() or {})
+        data = normalize_recipe_document(recipe.id, recipe.to_dict() or {})
         recipe_ingredients = data.get('ingredients', [])
 
         matched, missing = find_recipe_matches(recipe_ingredients, requested_ingredients)
 
-        if not matched:
+        if len(matched) < minimum_required_matches:
             continue
 
         preferred_health = user_demand.get("preferred_health")
         health_preference_bonus = 1 if preferred_health and data.get("health_label") == preferred_health else 0
 
-        requested_count = len(requested_ingredients)
         matched_count = len(matched)
         matching_score = round((matched_count / requested_count) * 100, 2) if requested_count else 0
 
@@ -1465,8 +1523,9 @@ def get_history(user_id):
 if __name__ == '__main__':
     if '--upload-recipes' in sys.argv:
         print("Uploading all recipes from CSV to Firestore...")
-        # print(upload_all_recipes())
+        print(upload_all_recipes())
         sys.exit(0)
+    # upload_all_recipes()
     print("Starting Flask server...")
     app.run(debug=True, port=5500)
     

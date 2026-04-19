@@ -9,14 +9,13 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 // Your web app's Firebase configuration
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDCJsc1P1swgnDvqlejcjo9uq60BdxHmBI",
-  authDomain: "recipe-recommendation-259bf.firebaseapp.com",
-  databaseURL: "https://recipe-recommendation-259bf-default-rtdb.firebaseio.com",
-  projectId: "recipe-recommendation-259bf",
-  storageBucket: "recipe-recommendation-259bf.firebasestorage.app",
-  messagingSenderId: "225689206362",
-  appId: "1:225689206362:web:73dc41fc1bfdb22447e263",
-  measurementId: "G-46CVPYZ0QZ"
+  apiKey: "AIzaSyBjbPSpwe2rXpBgq6ps9nV-7PuQ0opX3OE",
+  authDomain: "recipegenie-cf868.firebaseapp.com",
+  projectId: "recipegenie-cf868",
+  storageBucket: "recipegenie-cf868.firebasestorage.app",
+  messagingSenderId: "1048359865319",
+  appId: "1:1048359865319:web:d3075bb454636abe964b42",
+  measurementId: "G-48J5NK60JB"
 };
 
 // Initialize Firebase
@@ -154,6 +153,13 @@ if (hamburger) {
     navMenu.classList.toggle('active');
   });
 }
+
+document.querySelectorAll('.nav-menu a').forEach(link => {
+  const linkPath = new URL(link.href, window.location.origin).pathname;
+  if (linkPath === window.location.pathname) {
+    link.classList.add('active');
+  }
+});
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/static/js/service-worker.js');
@@ -351,14 +357,18 @@ if (findBtn) {
     }
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       const res = await fetch('/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           ingredients,
           query: recipeDemand
         })
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -396,7 +406,9 @@ if (findBtn) {
       console.error("Recommendation error:", error);
       const resultsSummary = document.getElementById('results-summary');
       if (resultsSummary) {
-        resultsSummary.textContent = 'There was a problem loading filtered recipes from Firebase.';
+        resultsSummary.textContent = error.name === 'AbortError'
+          ? 'Recipe search took too long. Try fewer ingredients or search again.'
+          : 'There was a problem loading filtered recipes from Firebase.';
       }
     }
 
@@ -625,10 +637,11 @@ async function loadRecipes(reset = false) {
   // Get filters
   const search = document.getElementById('search-input')?.value || '';
   const state = document.getElementById('state-select')?.value || 'All';
+  const cuisine = document.getElementById('cuisine-select')?.value || 'All';
   const highRated = document.getElementById('high-rated')?.checked || false;
 
   // Build URL
-  let url = `/get-recipes?state=${encodeURIComponent(state)}&search=${encodeURIComponent(search)}&high_rated=${highRated}&limit=50`;
+  let url = `/get-recipes?state=${encodeURIComponent(state)}&cuisine=${encodeURIComponent(cuisine)}&search=${encodeURIComponent(search)}&high_rated=${highRated}&limit=50`;
 
   if (!reset && lastRecipeId) {
     url += `&last_doc_id=${encodeURIComponent(lastRecipeId)}`;
@@ -1393,6 +1406,7 @@ document.getElementById('search-input')?.addEventListener('keypress', e => {
 });
 document.getElementById('high-rated')?.addEventListener('change', () => loadRecipes(true));
 document.getElementById('state-select')?.addEventListener('change', () => loadRecipes(true));
+document.getElementById('cuisine-select')?.addEventListener('change', () => loadRecipes(true));
 
 // Like / Unlike handler
 document.addEventListener('click', async e => {
