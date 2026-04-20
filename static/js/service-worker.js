@@ -1,30 +1,40 @@
 // service-worker.js
-// Gujarat Smart Recipe Recommendation System - PWA Service Worker
+// Smart Recipe Recommendation System - PWA Service Worker
 // Version: 1.0.0 - January 2026
 
-const CACHE_NAME = 'gujarat-recipe-ai-v1';
-const OFFLINE_PAGE = '/offline.html'; // Create this page if you want a custom offline experience
+const CACHE_NAME = 'recipegenie-v2';
+const OFFLINE_PAGE = '/offline.html'; // Optional custom offline page
 
 // List of assets to cache immediately on install
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
-  '/manifest.json',
   '/static/css/style.css',
   '/static/js/app.js',
-  '/static/images/icon-192.png',
-  '/static/images/icon-512.png',
-  // Add more images / fonts / icons as needed
-  // Example: '/static/images/dhokla.jpg',
-  // '/static/images/undhiyu.jpg',
 ];
+
+async function cacheAvailableAssets(cache) {
+  const results = await Promise.allSettled(
+    STATIC_ASSETS.map(async (asset) => {
+      const response = await fetch(asset, { cache: 'reload' });
+      if (!response.ok) {
+        throw new Error(`${asset} returned ${response.status}`);
+      }
+      await cache.put(asset, response);
+      return asset;
+    })
+  );
+
+  results
+    .filter(result => result.status === 'rejected')
+    .forEach(result => console.warn('[Service Worker] Skipped cache asset:', result.reason));
+}
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Pre-caching static assets');
-      return cache.addAll(STATIC_ASSETS);
+      return cacheAvailableAssets(cache);
     }).catch(err => {
       console.error('[Service Worker] Install failed:', err);
     })
@@ -113,7 +123,13 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       }).catch(() => {
         // Offline fallback (optional custom offline page)
-        return caches.match(OFFLINE_PAGE);
+        return caches.match(OFFLINE_PAGE).then((offlineResponse) => {
+          return offlineResponse || new Response('RecipeGenie is offline. Please reconnect and try again.', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
       });
     })
   );

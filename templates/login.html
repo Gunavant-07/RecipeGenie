@@ -2,25 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login - Gujarat Recipe AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - RecipeGenie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
-  <div class="auth-container">
-    <div class="auth-card">
-      <h2>Login</h2>
-      <form id="login-form">
-        <input type="email" placeholder="Email" required/>
-        <input type="password" placeholder="Password" required/>
-        <p id="login-error" style="color:red;"></p>
-        <button type="submit" class="btn primary">Login</button>
-      </form>
-      <p>Don't have an account? <a href="{{ url_for('register_page') }}">Register</a></p>
-    </div>
-  </div>
+<body class="auth-page auth-login-page">
+  <main class="auth-layout">
+    <section class="auth-story" aria-label="RecipeGenie welcome">
+      <a class="auth-brand" href="{{ url_for('home') }}">
+        <span class="auth-brand-mark">RG</span>
+        <span>RecipeGenie</span>
+      </a>
+      <div class="auth-story-copy">
+        <span class="auth-kicker">Your smart kitchen companion</span>
+        <h1>Pick up where your cravings left off.</h1>
+        <p>Sign in to save cooked recipes, track health habits, and get ingredient-aware recommendations from your Firebase recipe collection.</p>
+      </div>
+      <div class="auth-proof-row">
+        <span><i class="fas fa-heart-pulse"></i> Health tracking</span>
+        <span><i class="fas fa-bowl-food"></i> Smart recipes</span>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-label="Login form">
+      <div class="auth-card">
+        <div class="auth-card-heading">
+          <span class="auth-kicker">Welcome back</span>
+          <h2>Login</h2>
+          <p>Enter your details and jump back into cooking.</p>
+        </div>
+
+        <form id="login-form" class="auth-form">
+          <label class="field-shell" for="login-email">
+            <span>Email address</span>
+            <i class="fas fa-envelope"></i>
+            <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+          </label>
+
+          <label class="field-shell" for="login-password">
+            <span>Password</span>
+            <i class="fas fa-lock"></i>
+            <input id="login-password" type="password" placeholder="Your password" autocomplete="current-password" required />
+          </label>
+
+          <p id="login-error" class="auth-error" role="alert"></p>
+
+          <button type="submit" class="auth-submit">
+            Login
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </form>
+
+        <p class="auth-switch">New to RecipeGenie? <a href="{{ url_for('register_page') }}">Create an account</a></p>
+      </div>
+    </section>
+  </main>
+
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

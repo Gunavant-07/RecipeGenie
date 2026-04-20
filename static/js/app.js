@@ -8,20 +8,39 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 
 // Your web app's Firebase configuration
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBjbPSpwe2rXpBgq6ps9nV-7PuQ0opX3OE",
-  authDomain: "recipegenie-cf868.firebaseapp.com",
-  projectId: "recipegenie-cf868",
-  storageBucket: "recipegenie-cf868.firebasestorage.app",
-  messagingSenderId: "1048359865319",
-  appId: "1:1048359865319:web:d3075bb454636abe964b42",
-  measurementId: "G-48J5NK60JB"
-};
+// const firebaseConfig = {
+//   apiKey: "AIzaSyBjbPSpwe2rXpBgq6ps9nV-7PuQ0opX3OE",
+//   authDomain: "recipegenie-cf868.firebaseapp.com",
+//   projectId: "recipegenie-cf868",
+//   storageBucket: "recipegenie-cf868.firebasestorage.app",
+//   messagingSenderId: "1048359865319",
+//   appId: "1:1048359865319:web:d3075bb454636abe964b42",
+//   measurementId: "G-48J5NK60JB"
+// };
 
+const firebaseConfig = {
+  apiKey: "AIzaSyAtaYuBm0oQKVS2XWhSAIuYUaCz4d0rro0",
+  authDomain: "recipegenie-3457e.firebaseapp.com",
+  projectId: "recipegenie-3457e",
+  storageBucket: "recipegenie-3457e.firebasestorage.app",
+  messagingSenderId: "695967048126",
+  appId: "1:695967048126:web:ad9c5e1c22635a75a299ef",
+  measurementId: "G-12RDHMZ6WE"
+};
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 const auth = getAuth(app);
+
+const DEFAULT_RECIPE_IMAGE = 'https://recipesimages.edgeone.app/default.jpg';
+
+function getRecipeImageUrl(recipe) {
+  const imageUrl = String(recipe?.image_url || recipe?.image || '').trim();
+  if (/^(https?:\/\/|\/static\/|\/uploads\/)/i.test(imageUrl)) {
+    return imageUrl;
+  }
+  return DEFAULT_RECIPE_IMAGE;
+}
 
 
 // Password validation function (manual, since Firebase doesn't have client-side validatePassword)
@@ -192,6 +211,31 @@ function formatIngredient(value = '') {
     .join(' ');
 }
 
+function parseIngredientItems(text = '') {
+  const cleaned = String(text)
+    .toLowerCase()
+    .replace(/\b(i have|i want|please add|add|use|using|with|plus|and)\b/g, ',')
+    .replace(/[.]/g, ',')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) return [];
+
+  const parts = cleaned
+    .split(/[,;\n]+/)
+    .map(item => normalizeIngredient(item))
+    .filter(Boolean);
+
+  if (parts.length === 1) {
+    const words = parts[0].split(/\s+/).filter(Boolean);
+    if (words.length >= 3 && words.length <= 8) {
+      return words;
+    }
+  }
+
+  return parts;
+}
+
 function getSelectedIngredients() {
   if (!tagsContainer) return [];
 
@@ -219,6 +263,10 @@ function setDetectedMessage(message) {
   if (resultsDiv) {
     resultsDiv.textContent = message;
   }
+}
+
+function getDetectionModelType() {
+  return document.getElementById('detection-model')?.value || 'single';
 }
 
 function addTag(text = ingredientInput?.value?.trim() || '') {
@@ -254,10 +302,7 @@ function addTag(text = ingredientInput?.value?.trim() || '') {
 }
 
 function addTagsFromText(text = '') {
-  return String(text)
-    .split(/[,;\n]+/)
-    .map(item => item.trim())
-    .filter(Boolean)
+  return parseIngredientItems(text)
     .filter(item => addTag(item))
     .map(item => formatIngredient(item));
 }
@@ -358,7 +403,7 @@ if (findBtn) {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
       const res = await fetch('/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -370,11 +415,15 @@ if (findBtn) {
       });
       clearTimeout(timeoutId);
 
+      const contentType = res.headers.get('content-type') || '';
+      const payload = contentType.includes('application/json')
+        ? await res.json()
+        : { error: await res.text() };
+
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        throw new Error(payload.message || payload.error || `HTTP ${res.status}`);
       }
 
-      const payload = await res.json();
       const recs = Array.isArray(payload.recipes) ? payload.recipes : [];
 
       const grid = document.querySelector('.recipe-grid');
@@ -407,8 +456,8 @@ if (findBtn) {
       const resultsSummary = document.getElementById('results-summary');
       if (resultsSummary) {
         resultsSummary.textContent = error.name === 'AbortError'
-          ? 'Recipe search took too long. Try fewer ingredients or search again.'
-          : 'There was a problem loading filtered recipes from Firebase.';
+          ? 'Recipe search took too long. Please run the ingredient index backfill once, then search again.'
+          : `There was a problem loading filtered recipes from Firebase. ${error.message || ''}`.trim();
       }
     }
 
@@ -517,10 +566,11 @@ if (location.pathname.includes('history')) {
       hist.forEach(item => {
         const recipe = item.recipe || {};
         const healthType = recipe.health_label || recipe.category || 'Moderate';
+        const imageUrl = getRecipeImageUrl(recipe);
         const div = document.createElement('div');
         div.classList.add('history-card');
         div.innerHTML = `
-          <img src="${recipe.image_url || 'https://recipesimages.edgeone.app/default.jpg'}" alt="${recipe.name || 'Recipe'}" onerror="this.src='https://recipesimages.edgeone.app/default.jpg'">
+          <img src="${imageUrl}" alt="${recipe.name || 'Recipe'}" onerror="this.src='${DEFAULT_RECIPE_IMAGE}'">
           <div class="history-card-body">
             <div class="history-meta">
               <span>${item.date ? new Date(item.date).toLocaleDateString() : 'Recently cooked'}</span>
@@ -549,6 +599,8 @@ let lastDocId = null;
 let lastRecipeId = null;
 let isLoading = false;
 let hasMore = true;
+let recipesAbortController = null;
+let recipesRequestSeq = 0;
 
 function createRecipeCard(recipe) {
 
@@ -560,14 +612,15 @@ function createRecipeCard(recipe) {
     ? recipe.ingredients
     : (typeof recipe.ingredients === "string" ? [recipe.ingredients] : []);
   const healthType = recipe.health_label || recipe.category || 'Moderate';
+  const imageUrl = getRecipeImageUrl(recipe);
 
   card.innerHTML = `
     <div class="card-image-wrap">
       <img
         class="card-image"
-        src="${recipe.image_url || 'https://recipesimages.edgeone.app/default.jpg'}"
+        src="${imageUrl}"
         alt="${recipe.name}"
-        onerror="this.src='https://recipesimages.edgeone.app/default.jpg'"
+        onerror="this.src='${DEFAULT_RECIPE_IMAGE}'"
       >
       <span class="badge ${healthType.toLowerCase().replace(/\s+/g, '-')} card-type-badge">
         ${healthType}
@@ -621,9 +674,28 @@ function createRecipeCard(recipe) {
 
 async function loadRecipes(reset = false) {
 
+  if (reset && recipesAbortController) {
+    recipesAbortController.abort();
+  }
+
+  if (reset) {
+    currentPage = 1;
+    lastDocId = null;
+    lastRecipeId = null;
+    hasMore = true;
+    const grid = document.querySelector('.recipe-grid');
+    const noMore = document.getElementById('no-more');
+    if (grid) grid.innerHTML = '';
+    if (noMore) noMore.style.display = 'none';
+  }
+
   // Prevent multiple calls
-  if (isLoading || !hasMore) return;
+  if (isLoading && !reset) return;
+  if (!hasMore) return;
   isLoading = true;
+  const requestId = ++recipesRequestSeq;
+  const controller = new AbortController();
+  recipesAbortController = controller;
 
   // Get UI elements safely
   const loading = document.getElementById('loading');
@@ -636,12 +708,11 @@ async function loadRecipes(reset = false) {
 
   // Get filters
   const search = document.getElementById('search-input')?.value || '';
-  const state = document.getElementById('state-select')?.value || 'All';
   const cuisine = document.getElementById('cuisine-select')?.value || 'All';
   const highRated = document.getElementById('high-rated')?.checked || false;
 
   // Build URL
-  let url = `/get-recipes?state=${encodeURIComponent(state)}&cuisine=${encodeURIComponent(cuisine)}&search=${encodeURIComponent(search)}&high_rated=${highRated}&limit=50`;
+  let url = `/get-recipes?cuisine=${encodeURIComponent(cuisine)}&search=${encodeURIComponent(search)}&high_rated=${highRated}&limit=50`;
 
   if (!reset && lastRecipeId) {
     url += `&last_doc_id=${encodeURIComponent(lastRecipeId)}`;
@@ -650,22 +721,16 @@ async function loadRecipes(reset = false) {
   try {
 
     // ✅ FETCH API (IMPORTANT FIX)
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
 
     const data = await res.json();
+    if (requestId !== recipesRequestSeq) return;
 
     console.log("API DATA:", data);
-
-    // Reset grid if needed
-    if (reset && grid) {
-      grid.innerHTML = '';
-      lastRecipeId = null;
-      hasMore = true;
-    }
 
     // Append recipes safely
     if (data.recipes && Array.isArray(data.recipes)) {
@@ -680,12 +745,18 @@ async function loadRecipes(reset = false) {
 
     // No more data
     if (!hasMore && grid && grid.children.length === 0) {
-      grid.innerHTML = '<p style="text-align:center;">No recipes found</p>';
+      grid.innerHTML = `
+        <div class="empty-state">
+          <h3>No recipes found for this cuisine.</h3>
+          <p>Try All Cuisines or choose another cuisine from the dataset.</p>
+        </div>
+      `;
     } else if (!hasMore && noMore) {
       noMore.style.display = 'block';
     }
 
   } catch (err) {
+    if (err.name === 'AbortError') return;
 
     console.error('Error loading recipes:', err);
 
@@ -699,9 +770,11 @@ async function loadRecipes(reset = false) {
 
   } finally {
 
-    isLoading = false;
+    if (requestId === recipesRequestSeq) {
+      isLoading = false;
 
-    if (loading) loading.style.display = 'none';
+      if (loading) loading.style.display = 'none';
+    }
   }
 }
 
@@ -755,35 +828,39 @@ function renderGeneratedRecipe(data) {
 async function generateRecipe() {
     const input = document.getElementById("ingredients")?.value?.trim() || "";
     const output = document.getElementById("output");
+    const selectedIngredients = getSelectedIngredients();
+    const typedIngredients = parseIngredientItems(input);
+    const ingredients = Array.from(new Set([...selectedIngredients, ...typedIngredients]));
 
-    if (!input) {
+    if (!ingredients.length) {
         if (output) {
-          output.innerHTML = '<div class="generated-empty"><h2>Add ingredients first</h2><p>Example: tomato, onion, paneer, rice</p></div>';
+          output.innerHTML = '<div class="generated-empty"><h2>Add ingredients first</h2><p>Type, speak, upload an image, or capture from camera before generating.</p></div>';
         }
         return;
     }
 
-    const ingredients = input.split(",").map(i => i.trim()).filter(Boolean);
-    output.innerHTML = '<div class="generated-empty"><h2>Generating your recipe...</h2><p>RecipeGenie is building steps and nutrition details.</p></div>';
-
-    output.innerHTML = "⏳ Generating recipe...";
+    if (output) {
+      output.innerHTML = '<div class="generated-empty"><h2>Generating your recipe...</h2><p>RecipeGenie is building steps and nutrition details.</p></div>';
+    }
 
     try {
-        output.innerHTML = '<div class="generated-empty"><h2>Generating your recipe...</h2><p>RecipeGenie is building steps and nutrition details.</p></div>';
         const res = await fetch('/generate-recipe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ingredients })
         });
 
+        const contentType = res.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await res.json()
+            : { error: await res.text() };
+
         if (!res.ok) {
-            throw new Error("Server error");
+            throw new Error(data.error || `Server error ${res.status}`);
         }
 
-        const data = await res.json();
-
         if (data.error) {
-            output.innerHTML = "❌ " + data.error;
+            output.innerHTML = `<div class="generated-empty"><h2>Unable to generate recipe</h2><p>${data.error}</p></div>`;
             return;
         }
 
@@ -807,7 +884,7 @@ async function generateRecipe() {
 
     } catch (err) {
         console.error(err);
-        output.innerHTML = "❌ Failed to connect to server";
+        output.innerHTML = `<div class="generated-empty"><h2>Failed to connect to server</h2><p>${err.message || 'Please try again.'}</p></div>`;
     }
 }
 
@@ -1058,14 +1135,25 @@ async function captureImage() {
 
         const formData = new FormData();
         formData.append("image", blob, "capture.jpg");
+        const modelType = getDetectionModelType();
+        formData.append("model_type", modelType);
+        setDetectedMessage(`Detecting camera image with ${modelType} model...`);
 
-        const res = await fetch("/detect-ingredients", {
-            method: "POST",
-            body: formData
-        });
+        try {
+            const res = await fetch("/detect-ingredients", {
+                method: "POST",
+                body: formData
+            });
 
-        const data = await res.json();
-        addDetectedIngredients(data.ingredients || [], "Camera");
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || `Detection failed with HTTP ${res.status}`);
+            }
+            addDetectedIngredients(data.ingredients || [], `${formatIngredient(modelType)} camera model`);
+        } catch (error) {
+            console.error("Camera detection error:", error);
+            setDetectedMessage(`Camera detection failed: ${error.message}`);
+        }
 
     });
 }
@@ -1106,6 +1194,9 @@ function detectIngredients() {
 
     const formData = new FormData();
     formData.append("image", imageUpload.files[0]);
+    const modelType = getDetectionModelType();
+    formData.append("model_type", modelType);
+    setDetectedMessage(`Detecting uploaded image with ${modelType} model...`);
 
     fetch("/detect-ingredients", {
         method: "POST",
@@ -1113,10 +1204,16 @@ function detectIngredients() {
     })
     .then(res => res.json())
     .then(data => {
-        addDetectedIngredients(data.ingredients || [], "Image");
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        addDetectedIngredients(data.ingredients || [], `${formatIngredient(modelType)} image model`);
 
     })
-    .catch(err => console.error(err));
+    .catch(err => {
+        console.error(err);
+        setDetectedMessage(`Image detection failed: ${err.message}`);
+    });
 }
 
 window.detectIngredients = detectIngredients;
@@ -1405,7 +1502,6 @@ document.getElementById('search-input')?.addEventListener('keypress', e => {
   if (e.key === 'Enter') loadRecipes(true);
 });
 document.getElementById('high-rated')?.addEventListener('change', () => loadRecipes(true));
-document.getElementById('state-select')?.addEventListener('change', () => loadRecipes(true));
 document.getElementById('cuisine-select')?.addEventListener('change', () => loadRecipes(true));
 
 // Like / Unlike handler

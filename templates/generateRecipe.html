@@ -1,73 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>🍳 Recipe AI Generator</title>
+    <title>Recipe AI Generator - RecipeGenie</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            text-align: center;
-        }
-
-        .container {
-            margin-top: 50px;
-        }
-
-        h1 {
-            color: #333;
-        }
-
-        input {
-            width: 300px;
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-
-        button {
-            padding: 10px 20px;
-            margin-left: 10px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #218838;
-        }
-
-        #output {
-            margin: 30px auto;
-            width: 60%;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: left;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        ul, ol {
-            margin-left: 20px;
-        }
-
-        h2 {
-            color: #444;
-        }
-
-        h3 {
-            margin-top: 15px;
-            color: #555;
-        }
-    </style>
 </head>
 <body class="generate-page">
     <header>
@@ -90,16 +29,79 @@
 
     <main class="generate-shell">
         <section class="generate-hero">
-            <div>
+            <div class="generate-copy">
                 <span class="generate-eyebrow">AI cooking assistant</span>
-                <h1>Generate a smart recipe from ingredients you already have.</h1>
-                <p>Type ingredients like tomato, onion, paneer, rice and RecipeGenie will create a simple cooking plan with nutrition and health insight.</p>
+                <h1>Generate a recipe from anything in your kitchen.</h1>
+                <p>Type, speak, upload a photo, or use your camera. RecipeGenie adds detected ingredients into one bar, then creates a cooking plan with nutrition insight.</p>
+                <div class="generate-mini-stats">
+                    <span><strong>4</strong> input methods</span>
+                    <span><strong>AI</strong> recipe steps</span>
+                    <span><strong>Health</strong> scoring</span>
+                </div>
             </div>
+
             <form id="generate-recipe-form" class="generate-card">
-                <label for="ingredients">Your ingredients</label>
-                <textarea id="ingredients" rows="5" placeholder="Example: tomato, onion, paneer, rice"></textarea>
-                <button type="submit" class="btn primary" id="generate-recipe-btn">Generate Recipe</button>
-                <p class="generate-hint">Tip: separate ingredients with commas for better results.</p>
+                <div class="generate-card-heading">
+                    <label for="ingredient">Ingredient capture bar</label>
+                    <p>Add ingredients manually, by voice, from image detection, or camera capture.</p>
+                </div>
+
+                <div class="generate-input-row">
+                    <input id="ingredient" type="text" placeholder="Type tomato, onion, paneer..." autocomplete="off">
+                    <button type="button" id="add-ingredient" class="btn primary">Add</button>
+                    <button type="button" id="voice-ingredient" class="tool-btn" aria-label="Add ingredients by voice">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
+
+                <div id="tags-container" class="tags-container generate-tags"></div>
+                <p id="ingredient-counter" class="generate-hint">0 ingredients selected</p>
+                <p id="selected-ingredients-preview" class="generate-preview">No ingredients selected yet.</p>
+
+                <label for="ingredients">Recipe ingredient notes</label>
+                <textarea id="ingredients" rows="4" placeholder="Optional: paste ingredients here, separated by commas or new lines. These will be combined with the ingredient bar."></textarea>
+
+                <div class="ingredient-capture-grid">
+                    <section class="capture-panel">
+                        <div>
+                            <h3><i class="fas fa-image"></i> Detect from image</h3>
+                            <p>Upload a food image and add detected ingredients.</p>
+                        </div>
+                        <label class="detect-model-row" for="detection-model">
+                            <span>Detection model</span>
+                            <select id="detection-model">
+                                <option value="single">Single ingredient model</option>
+                                <option value="multiple">Multiple ingredients model</option>
+                            </select>
+                        </label>
+                        <input id="imageUpload" type="file" accept="image/*">
+                        <button type="button" id="detect-image-ingredients" class="btn secondary-btn">Detect Image</button>
+                    </section>
+
+                    <section class="capture-panel camera-panel">
+                        <div>
+                            <h3><i class="fas fa-camera"></i> Use camera</h3>
+                            <p>Open camera, capture, and add detected ingredients.</p>
+                        </div>
+                        <div class="camera-frame">
+                            <span id="camera-placeholder">Camera preview will appear here</span>
+                            <video id="camera" autoplay playsinline muted></video>
+                            <canvas id="canvas" style="display:none;"></canvas>
+                        </div>
+                        <div class="capture-actions">
+                            <button type="button" id="startCamera" class="btn secondary-btn">Start Camera</button>
+                            <button type="button" id="captureBtn" class="btn primary">Capture</button>
+                        </div>
+                    </section>
+                </div>
+
+                <div id="detected-results" class="detected-results">Ready to capture ingredients.</div>
+
+                <button type="submit" class="btn primary generate-main-btn" id="generate-recipe-btn">
+                    Generate Recipe
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                </button>
+                <p class="generate-hint">Tip: for best output, add 3 to 6 ingredients.</p>
             </form>
         </section>
 
@@ -111,22 +113,6 @@
         </section>
     </main>
 
-    <div class="container" style="display:none;">
-        <h1>🍳 Recipe Generator (FREE AI)</h1>
-
-        <input 
-            type="text" 
-            id="legacy-ingredients" 
-            placeholder="Enter ingredients (e.g., carrot, cucumber)"
-        >
-
-        <button onclick="generateRecipe()">Generate</button>
-
-        <div id="legacy-output"></div>
-    </div>
-
-    <!-- 🔥 JS File -->
     <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-
 </body>
 </html>

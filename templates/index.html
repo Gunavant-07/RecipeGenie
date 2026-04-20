@@ -391,6 +391,13 @@
             <div class="smart-panel">
               <h3>Image ingredient detection</h3>
               <p>Upload a fridge, basket, or vegetable image and detected ingredients will be added to the bar.</p>
+              <label class="detect-model-row" for="detection-model">
+                <span>Detection model</span>
+                <select id="detection-model">
+                  <option value="single">Single ingredient model</option>
+                  <option value="multiple">Multiple ingredients model</option>
+                </select>
+              </label>
               <input type="file" id="imageUpload" accept="image/*" />
               <div class="btn-row" style="margin-top: 0.9rem;">
                 <button class="btn primary" id="detect-image-ingredients" type="button">Detect From Image</button>

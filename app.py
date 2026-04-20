@@ -12,27 +12,52 @@ import random
 from firebase_config import database,datab
 from google.api_core.exceptions import FailedPrecondition
 import re
-import urllib.parse
 import numpy as np
 import cv2
 import ast
-import sys
-
-
+import os
 
 
 
 app = Flask(__name__)
 CORS(app)  
 
-# UPLOAD_FOLDER = "static/uploads"
-# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+SINGLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\single.pt"
+MULTIPLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\multimodel.pt"
+LEGACY_MULTIPLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\best.pt"
+FALLBACK_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\runs\detect\train\weights\best.pt"
 
-MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\runs\detect\train\weights\best.pt"
+DETECTION_MODEL_PATHS = {
+    "single": SINGLE_MODEL_PATH if os.path.exists(SINGLE_MODEL_PATH) else LEGACY_MULTIPLE_MODEL_PATH,
+    "multiple": MULTIPLE_MODEL_PATH if os.path.exists(MULTIPLE_MODEL_PATH) else LEGACY_MULTIPLE_MODEL_PATH,
+}
 
-print("Loading YOLO model...")
-model = YOLO(MODEL_PATH)
-print("Model loaded successfully!")
+_detection_model_cache = {}
+
+
+def normalize_detection_model_type(value):
+    model_type = str(value or "single").strip().lower()
+    if model_type in {"multi", "multiple", "multimodel", "multiple.pt", "multimodel.pt"}:
+        return "multiple"
+    return "single"
+
+
+def get_detection_model(model_type):
+    normalized_type = normalize_detection_model_type(model_type)
+    model_path = DETECTION_MODEL_PATHS.get(normalized_type, DETECTION_MODEL_PATHS["single"])
+
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"YOLO model not found for {normalized_type}: {model_path}")
+
+    if normalized_type not in _detection_model_cache:
+        print(f"Loading YOLO {normalized_type} ingredient model: {model_path}")
+        _detection_model_cache[normalized_type] = YOLO(model_path)
+        print(f"YOLO {normalized_type} model loaded successfully!")
+
+    return _detection_model_cache[normalized_type]
+
+
+print("YOLO ingredient models will load on first detection request.")
 
 @app.route('/')
 @app.route('/home')
@@ -48,15 +73,22 @@ def detect():
 
     file = request.files["image"]
     image_bytes = file.read()
+    model_type = normalize_detection_model_type(
+        request.form.get("model_type") or request.form.get("model") or request.args.get("model_type")
+    )
 
-    detected = detect_ingredients(image_bytes)
+    try:
+        detected = detect_ingredients(image_bytes, model_type=model_type)
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e), "ingredients": [], "model_type": model_type}), 500
 
     return jsonify({
-        "ingredients": detected
+        "ingredients": detected,
+        "model_type": model_type
     })
 
 
-def detect_ingredients(image_bytes):
+def detect_ingredients(image_bytes, model_type="single"):
 
     # Convert bytes → image
     np_arr = np.frombuffer(image_bytes, np.uint8)
@@ -65,8 +97,10 @@ def detect_ingredients(image_bytes):
     if img is None:
         return []
 
+    detector = get_detection_model(model_type)
+
     # Run YOLO
-    results = model(img)
+    results = detector(img)
 
     detected = []
 
@@ -77,10 +111,10 @@ def detect_ingredients(image_bytes):
             cls_id = int(box.cls[0])
 
             if conf > 0.4:
-                label = model.names[cls_id]
+                label = detector.names[cls_id]
                 detected.append(label)
 
-    return list(set(detected))  # remove duplicates
+    return list(dict.fromkeys(detected))  # remove duplicates
 
 
 
@@ -173,6 +207,13 @@ CHECK_FOR_DUPLICATES = True                  # prevent re-uploading same recipe 
 
 FALLBACK_IMAGE = "https://res.cloudinary.com/dvu9cofjk/image/upload/v1775146706/image_not_found_bmltnt.png"
 # # ==============================================
+
+
+def safe_image_url(value):
+    image_url = str(value or "").strip()
+    if re.match(r"^(https?://|/static/|/uploads/)", image_url, flags=re.IGNORECASE):
+        return image_url
+    return FALLBACK_IMAGE
 
 
 def recipe_collection():
@@ -275,21 +316,74 @@ def recipe_rating_value(recipe):
         return 0.0
 
 
+def first_present_value(data, keys, default=""):
+    for key in keys:
+        value = data.get(key)
+        if value is None:
+            continue
+        if isinstance(value, float) and pd.isna(value):
+            continue
+        text = str(value).strip()
+        if text and text.lower() != "nan":
+            return value
+    return default
+
+
+def clean_cuisine_label(value):
+    if value is None:
+        return ""
+
+    text = str(value).strip().replace("\ufeff", " ")
+
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, (list, tuple)) and parsed:
+            text = str(parsed[0]).strip()
+    except (ValueError, SyntaxError):
+        pass
+
+    text = re.sub(r"^\s*Cuisine\s*:\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bRecipes?\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"[\[\]\(\)'\"{}:]", " ", text)
+    text = re.sub(r"[^A-Za-z0-9 &-]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def normalize_cuisine_text(value):
-    return re.sub(r"\s+", " ", str(value or "").strip().lower())
+    return re.sub(r"\s+", " ", clean_cuisine_label(value).lower()).strip()
+
+
+def cuisine_search_terms(cuisine):
+    selected = normalize_cuisine_text(cuisine)
+    if not selected or selected == "all":
+        return []
+    return [selected]
 
 
 def recipe_matches_cuisine(recipe, cuisine):
-    selected = normalize_cuisine_text(cuisine)
-    if not selected or selected == "all":
+    selected_terms = cuisine_search_terms(cuisine)
+    if not selected_terms:
         return True
 
-    cuisine_fields = [
+    direct_cuisine_values = [
+        recipe.get("cuisine_key", ""),
         recipe.get("cuisine_name", ""),
+        recipe.get("Cuisine_name", ""),
+        recipe.get("cuisine", ""),
+        recipe.get("Cuisine", ""),
+        recipe.get("CuisineName", ""),
+    ]
+    direct_keys = {normalize_cuisine_text(value) for value in direct_cuisine_values if normalize_cuisine_text(value)}
+
+    if direct_keys:
+        return any(term in direct_keys for term in selected_terms)
+
+    legacy_values = [
         recipe.get("primary_state", ""),
         " ".join(recipe.get("state_tags", [])) if isinstance(recipe.get("state_tags"), list) else recipe.get("state_tags", ""),
     ]
-    return any(selected in normalize_cuisine_text(field) for field in cuisine_fields)
+    legacy_keys = {normalize_cuisine_text(value) for value in legacy_values if normalize_cuisine_text(value)}
+    return any(term in legacy_keys for term in selected_terms)
 
 
 def filter_and_sort_recipes(recipes, search="", high_rated=False, cuisine="All"):
@@ -395,9 +489,10 @@ def upload_all_recipes():
                 ['Image_Link', 'image_link', 'Image link', 'image', 'Image', 'image-url', 'Image URL', 'URL'],
                 FALLBACK_IMAGE
             )
-            state_labels = extract_state_labels(
+            cuisine_label = clean_cuisine_label(
                 get_row_value(row, ['Cuisine_name', 'Cuisine', 'CuisineName', 'Region', 'State'], 'Unknown')
-            )
+            ) or "Unknown"
+            state_labels = extract_state_labels(cuisine_label)
 
             if CHECK_FOR_DUPLICATES:
                 existing = existing_by_name.get(recipe_name.lower())
@@ -408,7 +503,9 @@ def upload_all_recipes():
                     if merged_states != existing_states:
                         batch.update(recipe_collection().document(existing["id"]), {
                             "state_tags": merged_states,
-                            "primary_state": merged_states[0] if merged_states else "Unknown"
+                            "primary_state": merged_states[0] if merged_states else "Unknown",
+                            "cuisine_name": cuisine_label,
+                            "cuisine_key": normalize_cuisine_text(cuisine_label)
                         })
                         pending_writes += 1
                         existing["state_tags"] = merged_states
@@ -453,6 +550,7 @@ def upload_all_recipes():
                 'name': recipe_name,
                 'image_url': image_link,
                 'ingredients': ingredients,
+                'ingredient_tokens': build_recipe_ingredient_tokens(ingredients),
                 'steps': steps,
                 'category': category,
                 'nutrition_type': get_row_value(row, ['Diet_Type', 'Diet', 'DietType'], 'Vegetarian'),
@@ -464,7 +562,8 @@ def upload_all_recipes():
                 'cook_time': get_row_value(row, ['Cooking_time', 'CookTimeInMins'], ''),
                 'total_time': get_row_value(row, ['Total_time', 'TotalTimeInMins'], ''),
                 'servings': get_row_value(row, ['Makes', 'Servings'], ''),
-                'cuisine_name': get_row_value(row, ['Cuisine_name', 'Cuisine', 'CuisineName'], ''),
+                'cuisine_name': cuisine_label,
+                'cuisine_key': normalize_cuisine_text(cuisine_label),
                 'state_tags': state_labels,
                 'primary_state': state_labels[0] if state_labels else 'Unknown',
                 'uploaded_at': pd.Timestamp.now().isoformat()
@@ -629,7 +728,24 @@ def normalize_recipe_document(recipe_id, recipe_data):
 
     normalized = dict(recipe_data)
     normalized["recipe_id"] = recipe_id
+    normalized["image_url"] = safe_image_url(normalized.get("image_url") or normalized.get("image"))
+    cuisine_label = clean_cuisine_label(first_present_value(normalized, [
+        "cuisine_name",
+        "Cuisine_name",
+        "cuisine",
+        "Cuisine",
+        "CuisineName",
+        "Region",
+        "State",
+        "primary_state",
+        "state"
+    ]))
+    normalized["cuisine_name"] = cuisine_label or "Unknown"
+    normalized["cuisine_key"] = normalize_cuisine_text(cuisine_label)
     normalized["ingredients"] = normalize_text_list(normalized.get("ingredients", []))
+    normalized["ingredient_tokens"] = normalize_text_list(
+        normalized.get("ingredient_tokens") or build_recipe_ingredient_tokens(normalized["ingredients"])
+    )
     normalized["steps"] = normalize_text_list(normalized.get("steps", []))
     normalized["nutrition_notes"] = normalize_text_list(normalized.get("nutrition_notes", []))
     normalized["nutrition_matched_ingredients"] = normalize_text_list(normalized.get("nutrition_matched_ingredients", []))
@@ -908,6 +1024,35 @@ def admin_backfill_health_data():
         "updated_recipes": updated
     }), 200
 
+
+@app.route('/admin/backfill-ingredient-index', methods=['POST'])
+def admin_backfill_ingredient_index():
+    limit = request.args.get('limit', type=int)
+    updated = 0
+    batch = datab.batch()
+    pending_writes = 0
+
+    for recipe_doc in stream_recipe_docs():
+        recipe_data = normalize_recipe_document(recipe_doc.id, recipe_doc.to_dict() or {})
+        tokens = build_recipe_ingredient_tokens(recipe_data.get("ingredients", []))
+        batch.update(recipe_doc.reference, {"ingredient_tokens": tokens})
+        pending_writes += 1
+        updated += 1
+
+        if pending_writes >= 400:
+            pending_writes = commit_firestore_batch(batch, pending_writes)
+            batch = datab.batch()
+
+        if limit and updated >= limit:
+            break
+
+    commit_firestore_batch(batch, pending_writes)
+
+    return jsonify({
+        "message": "Ingredient search index backfilled successfully.",
+        "updated_recipes": updated
+    }), 200
+
 # # API: Get filtered recipes (Firestore)
 @app.route('/get-recipes', methods=['GET'])
 def get_recipes():
@@ -1121,6 +1266,13 @@ def ingredient_tokens(value):
     return expanded_tokens
 
 
+def build_recipe_ingredient_tokens(ingredients):
+    tokens = set()
+    for ingredient in normalize_text_list(ingredients):
+        tokens.update(ingredient_tokens(ingredient))
+    return sorted(tokens)
+
+
 def parse_requested_ingredients(payload):
     if payload is None:
         return []
@@ -1204,81 +1356,116 @@ def required_ingredient_match_count(requested_count):
     return max(2, requested_count // 2)
 
 
+def recommendation_candidate_docs(requested_ingredients):
+    requested_tokens = sorted({
+        token
+        for ingredient in requested_ingredients
+        for token in ingredient_tokens(ingredient)
+    })
+
+    if requested_tokens:
+        try:
+            indexed_docs = list(
+                recipe_collection()
+                .where("ingredient_tokens", "array_contains_any", requested_tokens[:10])
+                .limit(160)
+                .stream()
+            )
+            if indexed_docs:
+                return indexed_docs, "ingredient_index"
+        except Exception as index_error:
+            print("[WARN] ingredient token index search failed:", index_error)
+
+    return stream_recipe_docs(), "full_scan"
+
+
 @app.route('/recommend', methods=['POST'])
 def recommend():
-    payload = request.get_json(silent=True) or {}
-    ingredients_from_json = payload.get("ingredients")
-    ingredients_from_form = request.form.get("ingredients", "")
-    user_query = payload.get("query") or request.form.get("query", "")
-    user_demand = parse_user_food_demand(user_query)
+    try:
+        payload = request.get_json(silent=True) or {}
+        ingredients_from_json = payload.get("ingredients")
+        ingredients_from_form = request.form.get("ingredients", "")
+        user_query = payload.get("query") or request.form.get("query", "")
+        user_demand = parse_user_food_demand(user_query)
 
-    requested_ingredients = parse_requested_ingredients(
-        ingredients_from_json if ingredients_from_json is not None else ingredients_from_form
-    )
+        requested_ingredients = parse_requested_ingredients(
+            ingredients_from_json if ingredients_from_json is not None else ingredients_from_form
+        )
 
-    if not requested_ingredients:
+        if not requested_ingredients:
+            return jsonify({
+                "recipes": [],
+                "requested_ingredients": [],
+                "message": "Add at least one ingredient to search recipes."
+            }), 200
+
+        recipes, search_mode = recommendation_candidate_docs(requested_ingredients)
+        results = []
+        requested_count = len(requested_ingredients)
+        minimum_required_matches = required_ingredient_match_count(requested_count)
+
+        for recipe in recipes:
+            data = normalize_recipe_document(recipe.id, recipe.to_dict() or {})
+            recipe_ingredients = data.get('ingredients', [])
+
+            matched, missing = find_recipe_matches(recipe_ingredients, requested_ingredients)
+
+            if len(matched) < minimum_required_matches:
+                continue
+
+            preferred_health = user_demand.get("preferred_health")
+            health_preference_bonus = 1 if preferred_health and data.get("health_label") == preferred_health else 0
+
+            matched_count = len(matched)
+            matching_score = round((matched_count / requested_count) * 100, 2) if requested_count else 0
+
+            try:
+                rating_value = float(data.get('ratings') or 0)
+            except (TypeError, ValueError):
+                rating_value = 0
+
+            data['recipe_id'] = recipe.id
+            data['matched_ingredients'] = matched
+            data['missing_ingredients'] = missing
+            data['matched_count'] = matched_count
+            data['requested_count'] = requested_count
+            data['matching_score'] = matching_score
+            data['_health_preference_bonus'] = health_preference_bonus
+            data['_sort_rating'] = rating_value
+
+            results.append(data)
+
+        results.sort(
+            key=lambda recipe: (
+                -recipe.get('_health_preference_bonus', 0),
+                -recipe.get('matching_score', 0),
+                -recipe.get('matched_count', 0),
+                -recipe.get('_sort_rating', 0),
+                recipe.get('name', '')
+            )
+        )
+
+        for recipe in results:
+            recipe.pop('_health_preference_bonus', None)
+            recipe.pop('_sort_rating', None)
+
+        return jsonify({
+            "recipes": results[:24],
+            "requested_ingredients": requested_ingredients,
+            "total_found": len(results),
+            "demand_profile": user_demand,
+            "search_mode": search_mode
+        }), 200
+
+    except Exception as e:
+        import traceback
+        print("[ERROR] /recommend failed:\n" + traceback.format_exc())
         return jsonify({
             "recipes": [],
             "requested_ingredients": [],
-            "message": "Add at least one ingredient to search recipes."
-        }), 200
-
-    recipes = stream_recipe_docs()
-    results = []
-    requested_count = len(requested_ingredients)
-    minimum_required_matches = required_ingredient_match_count(requested_count)
-
-    for recipe in recipes:
-        data = normalize_recipe_document(recipe.id, recipe.to_dict() or {})
-        recipe_ingredients = data.get('ingredients', [])
-
-        matched, missing = find_recipe_matches(recipe_ingredients, requested_ingredients)
-
-        if len(matched) < minimum_required_matches:
-            continue
-
-        preferred_health = user_demand.get("preferred_health")
-        health_preference_bonus = 1 if preferred_health and data.get("health_label") == preferred_health else 0
-
-        matched_count = len(matched)
-        matching_score = round((matched_count / requested_count) * 100, 2) if requested_count else 0
-
-        try:
-            rating_value = float(data.get('ratings') or 0)
-        except (TypeError, ValueError):
-            rating_value = 0
-
-        data['recipe_id'] = recipe.id
-        data['matched_ingredients'] = matched
-        data['missing_ingredients'] = missing
-        data['matched_count'] = matched_count
-        data['requested_count'] = requested_count
-        data['matching_score'] = matching_score
-        data['_health_preference_bonus'] = health_preference_bonus
-        data['_sort_rating'] = rating_value
-
-        results.append(data)
-
-    results.sort(
-        key=lambda recipe: (
-            -recipe.get('_health_preference_bonus', 0),
-            -recipe.get('matched_count', 0),
-            -recipe.get('matching_score', 0),
-            -recipe.get('_sort_rating', 0),
-            recipe.get('name', '')
-        )
-    )
-
-    for recipe in results:
-        recipe.pop('_health_preference_bonus', None)
-        recipe.pop('_sort_rating', None)
-
-    return jsonify({
-        "recipes": results[:20],
-        "requested_ingredients": requested_ingredients,
-        "total_found": len(results),
-        "demand_profile": user_demand
-    })
+            "error": "Recommendation search failed",
+            "message": str(e)
+        }), 500
 
 
 @app.route('/parse-food-demand', methods=['POST'])
@@ -1521,10 +1708,10 @@ def get_history(user_id):
     return jsonify(hist_list), 200
 
 if __name__ == '__main__':
-    if '--upload-recipes' in sys.argv:
-        print("Uploading all recipes from CSV to Firestore...")
-        print(upload_all_recipes())
-        sys.exit(0)
+    # if '--upload-recipes' in sys.argv:
+    #     print("Uploading all recipes from CSV to Firestore...")
+    #     print(upload_all_recipes())
+    #     sys.exit(0)
     # upload_all_recipes()
     print("Starting Flask server...")
     app.run(debug=True, port=5500)

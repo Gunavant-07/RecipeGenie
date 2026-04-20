@@ -2,27 +2,76 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Register - Gujarat Recipe AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register - RecipeGenie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
-  <div class="auth-container">
-    <div class="auth-card">
-      <h2>Register</h2>
-      <form id="register-form">
-        <input type="text" id="reg-name" placeholder="Full Name" required/>
-        <input type="email" id="reg-email" placeholder="Email" required/>
-        <input type="password" id="password" placeholder="Password" required/>
-        <input type="password" id="confirm-password" placeholder="Confirm Password" required/>
-        <div class="error"></div>
-        <button type="submit" class="btn primary">Register</button>
-      </form>
-      <p>Already have an account? <a href="{{ url_for('login_page') }}">Login</a></p>
-    </div>
-  </div>
+<body class="auth-page auth-register-page">
+  <main class="auth-layout">
+    <section class="auth-story" aria-label="RecipeGenie account benefits">
+      <a class="auth-brand" href="{{ url_for('home') }}">
+        <span class="auth-brand-mark">RG</span>
+        <span>RecipeGenie</span>
+      </a>
+      <div class="auth-story-copy">
+        <span class="auth-kicker">Cook smarter from day one</span>
+        <h1>Build a recipe profile that learns with you.</h1>
+        <p>Create your account to save favorites, track cooked meals, and receive healthier food suggestions based on your choices.</p>
+      </div>
+      <div class="auth-proof-row">
+        <span><i class="fas fa-camera"></i> Image ingredients</span>
+        <span><i class="fas fa-chart-line"></i> Health insights</span>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-label="Register form">
+      <div class="auth-card">
+        <div class="auth-card-heading">
+          <span class="auth-kicker">Start cooking</span>
+          <h2>Create account</h2>
+          <p>Use a strong password with uppercase, lowercase, number, and special character.</p>
+        </div>
+
+        <form id="register-form" class="auth-form">
+          <label class="field-shell" for="reg-name">
+            <span>Full name</span>
+            <i class="fas fa-user"></i>
+            <input id="reg-name" type="text" placeholder="Your name" autocomplete="name" required />
+          </label>
+
+          <label class="field-shell" for="reg-email">
+            <span>Email address</span>
+            <i class="fas fa-envelope"></i>
+            <input id="reg-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+          </label>
+
+          <label class="field-shell" for="password">
+            <span>Password</span>
+            <i class="fas fa-lock"></i>
+            <input id="password" type="password" placeholder="Create password" autocomplete="new-password" required />
+          </label>
+
+          <label class="field-shell" for="confirm-password">
+            <span>Confirm password</span>
+            <i class="fas fa-shield-halved"></i>
+            <input id="confirm-password" type="password" placeholder="Repeat password" autocomplete="new-password" required />
+          </label>
+
+          <div id="reg-error" class="auth-error error" role="alert"></div>
+
+          <button type="submit" class="auth-submit">
+            Create account
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </form>
+
+        <p class="auth-switch">Already registered? <a href="{{ url_for('login_page') }}">Login instead</a></p>
+      </div>
+    </section>
+  </main>
+
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

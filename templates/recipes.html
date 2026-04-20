@@ -39,7 +39,7 @@
 
       .recipes-filter-grid {
         display: grid;
-        grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(170px, 0.55fr)) auto auto;
+        grid-template-columns: minmax(240px, 1fr) minmax(220px, 0.75fr) auto auto;
         gap: 1rem;
         align-items: center;
       }
@@ -123,34 +123,89 @@
       <div class="recipes-shell">
         <div class="recipes-hero">
           <h2>Explore Recipes</h2>
-          <p>Browse recipe cards, filter by state or rating, and save favorites for the next cooking session.</p>
+          <p>Browse recipe cards, filter by cuisine, and save favorites for the next cooking session.</p>
 
           <div class="recipes-filter-panel">
             <div class="recipes-filter-grid">
               <input type="text" id="search-input" placeholder="Search by recipe name..." />
 
-              <select id="state-select" aria-label="Filter by state">
-                <option value="All">All States</option>
-                <option value="Gujarat">Gujarat</option>
-                <option value="Maharashtra">Maharashtra</option>
-                <option value="Punjab">Punjab</option>
-                <option value="Rajasthan">Rajasthan</option>
-                <option value="Tamil Nadu">Tamil Nadu</option>
-                <option value="Kerala">Kerala</option>
-                <option value="West Bengal">West Bengal</option>
-              </select>
-
               <select id="cuisine-select" aria-label="Filter by cuisine">
                 <option value="All">All Cuisines</option>
-                <option value="Gujarati">Gujarati</option>
-                <option value="Maharashtrian">Maharashtrian</option>
-                <option value="Punjabi">Punjabi</option>
-                <option value="South Indian">South Indian</option>
-                <option value="North Indian">North Indian</option>
+                <option value="Afghan">Afghan</option>
+                <option value="African">African</option>
+                <option value="American">American</option>
+                <option value="Andhra">Andhra</option>
+                <option value="Arab">Arab</option>
+                <option value="Asian">Asian</option>
+                <option value="Assamese">Assamese</option>
+                <option value="Awadhi">Awadhi</option>
+                <option value="Bangladeshi">Bangladeshi</option>
                 <option value="Bengali">Bengali</option>
-                <option value="Rajasthani">Rajasthani</option>
-                <option value="Continental">Continental</option>
+                <option value="Bihari">Bihari</option>
+                <option value="British">British</option>
+                <option value="Burmese">Burmese</option>
+                <option value="Cantonese">Cantonese</option>
+                <option value="Caribbean">Caribbean</option>
+                <option value="Chettinad">Chettinad</option>
                 <option value="Chinese">Chinese</option>
+                <option value="Coastal Karnataka">Coastal Karnataka</option>
+                <option value="Continental">Continental</option>
+                <option value="Coorg">Coorg</option>
+                <option value="European">European</option>
+                <option value="French">French</option>
+                <option value="Fusion">Fusion</option>
+                <option value="Goan">Goan</option>
+                <option value="Greek">Greek</option>
+                <option value="Gujarati">Gujarati</option>
+                <option value="Haryana">Haryana</option>
+                <option value="Himachal">Himachal</option>
+                <option value="Hunan">Hunan</option>
+                <option value="Hyderabadi">Hyderabadi</option>
+                <option value="Indian">Indian</option>
+                <option value="Indo Chinese">Indo Chinese</option>
+                <option value="Indonesian">Indonesian</option>
+                <option value="Italian">Italian</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Jewish">Jewish</option>
+                <option value="Jharkhand">Jharkhand</option>
+                <option value="Karnataka">Karnataka</option>
+                <option value="Kashmiri">Kashmiri</option>
+                <option value="Kerala">Kerala</option>
+                <option value="Kongunadu">Kongunadu</option>
+                <option value="Konkan">Konkan</option>
+                <option value="Korean">Korean</option>
+                <option value="Lucknowi">Lucknowi</option>
+                <option value="Maharashtrian">Maharashtrian</option>
+                <option value="Malabar">Malabar</option>
+                <option value="Malaysian">Malaysian</option>
+                <option value="Malvani">Malvani</option>
+                <option value="Mangalorean">Mangalorean</option>
+                <option value="Mediterranean">Mediterranean</option>
+                <option value="Mexican">Mexican</option>
+                <option value="Middle Eastern">Middle Eastern</option>
+                <option value="Mughlai">Mughlai</option>
+                <option value="Nagaland">Nagaland</option>
+                <option value="Nepalese">Nepalese</option>
+                <option value="North East India">North East India</option>
+                <option value="North Indian">North Indian</option>
+                <option value="North Karnataka">North Karnataka</option>
+                <option value="Oriya">Oriya</option>
+                <option value="Pakistani">Pakistani</option>
+                <option value="Parsi">Parsi</option>
+                <option value="Punjabi">Punjabi</option>
+                <option value="Rajasthani">Rajasthani</option>
+                <option value="Sichuan">Sichuan</option>
+                <option value="Sindhi">Sindhi</option>
+                <option value="Singapore">Singapore</option>
+                <option value="South Indian">South Indian</option>
+                <option value="South Karnataka">South Karnataka</option>
+                <option value="Sri Lankan">Sri Lankan</option>
+                <option value="Tamil Nadu">Tamil Nadu</option>
+                <option value="Thai">Thai</option>
+                <option value="Udupi">Udupi</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="Uttarakhand-North Kumaon">Uttarakhand-North Kumaon</option>
+                <option value="Vietnamese">Vietnamese</option>
               </select>
 
               <label style="display: flex; align-items: center; gap: 0.5rem;"><input type="checkbox" id="high-rated" />High Rated Only (≥4.5)</label>

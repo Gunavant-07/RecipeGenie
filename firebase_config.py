@@ -9,7 +9,8 @@ SERVICE_ACCOUNT_KEY = "recipe-genie.json"
 # Initialize Firebase Admin SDK (only once!)
 
 cred = credentials.Certificate(SERVICE_ACCOUNT_KEY)
-firebase_admin.initialize_app(cred,{"databaseURL" : "https://recipegenie-cf868-default-rtdb.firebaseio.com"})
+firebase_admin.initialize_app(cred,{"databaseURL" : "https://recipegenie-3457e-default-rtdb.asia-southeast1.firebasedatabase.app"})
+# firebase_admin.initialize_app(cred,{"databaseURL" : "https://recipegenie-cf868-default-rtdb.firebaseio.com"})
 
 # Now you can safely use Firestore anywhere
 datab = firestore.client()
