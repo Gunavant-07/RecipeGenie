@@ -507,14 +507,39 @@ document.addEventListener('click', async e => {
       if (feedbackBox) {
         feedbackBox.style.display = 'block';
         feedbackBox.innerHTML = `
-          <h3 style="margin-bottom:0.6rem;">Meal saved to your tracker</h3>
-          <p><strong>Status:</strong> ${payload.health_label || 'Moderate'}</p>
-          <p><strong>Health score:</strong> ${payload.health_score || 0}/100</p>
-          <p><strong>Calories:</strong> ${payload.nutrition?.calories || 0} kcal</p>
-          <p><strong>Protein:</strong> ${payload.nutrition?.protein || 0} g</p>
-          <p><strong>Fiber:</strong> ${payload.nutrition?.fiber || 0} g</p>
-          <p><strong>Notes:</strong> ${(payload.nutrition_notes || []).join(', ') || 'Nutrition data saved'}</p>
-          ${payload.notification ? `<p style="color:#c62828; margin-top:0.6rem;"><strong>Warning:</strong> ${payload.notification}</p>` : '<p style="margin-top:0.6rem; color:var(--secondary);"><strong>Good:</strong> Dashboard and health tracker updated successfully.</p>'}
+          <h3>Meal saved to your tracker</h3>
+          <div class="tracker-stat-grid">
+            <div class="tracker-stat">
+              <span>Status</span>
+              <strong>${payload.health_label || 'Moderate'}</strong>
+            </div>
+            <div class="tracker-stat">
+              <span>Health score</span>
+              <strong>${payload.health_score || 0}/100</strong>
+            </div>
+            <div class="tracker-stat">
+              <span>Calories</span>
+              <strong>${payload.nutrition?.calories || 0} kcal</strong>
+            </div>
+          </div>
+          <div class="tracker-stat-grid" style="margin-top:0.7rem;">
+            <div class="tracker-stat">
+              <span>Protein</span>
+              <strong>${payload.nutrition?.protein || 0} g</strong>
+            </div>
+            <div class="tracker-stat">
+              <span>Fiber</span>
+              <strong>${payload.nutrition?.fiber || 0} g</strong>
+            </div>
+            <div class="tracker-stat">
+              <span>Update</span>
+              <strong>${payload.notification ? 'Attention' : 'Saved'}</strong>
+            </div>
+          </div>
+          <div class="tracker-note-scroll" style="margin-top:0.85rem;">
+            <strong>Notes:</strong> ${(payload.nutrition_notes || []).join(', ') || 'Nutrition data saved'}
+            ${payload.notification ? `<p style="color:#c62828; margin-top:0.65rem;"><strong>Warning:</strong> ${payload.notification}</p>` : '<p style="margin-top:0.65rem; color:var(--secondary);"><strong>Good:</strong> Dashboard and health tracker updated successfully.</p>'}
+          </div>
         `;
       }
 
@@ -522,13 +547,15 @@ document.addEventListener('click', async e => {
         if (Array.isArray(payload.recommendations) && payload.recommendations.length) {
           recommendationBox.style.display = 'block';
           recommendationBox.innerHTML = `
-            <h3 style="margin-bottom:0.8rem;">Healthy recipes for your next meal</h3>
+            <h3>Healthy recipes for your next meal</h3>
+            <div class="summary-recommendations">
             ${payload.recommendations.map(recipe => `
-              <p style="margin-bottom:0.6rem;">
-                <a href="/recipe-detail/${recipe.recipe_id}"><strong>${recipe.name}</strong></a><br>
-                <span style="color:var(--gray);">${recipe.reason}</span>
-              </p>
+              <a href="/recipe-detail/${recipe.recipe_id}" class="summary-recipe-link">
+                <strong>${recipe.name}</strong>
+                <span>${recipe.reason}</span>
+              </a>
             `).join('')}
+            </div>
           `;
         } else {
           recommendationBox.style.display = 'none';
@@ -573,7 +600,7 @@ if (location.pathname.includes('history')) {
           <img src="${imageUrl}" alt="${recipe.name || 'Recipe'}" onerror="this.src='${DEFAULT_RECIPE_IMAGE}'">
           <div class="history-card-body">
             <div class="history-meta">
-              <span>${item.date ? new Date(item.date).toLocaleDateString() : 'Recently cooked'}</span>
+              <span class="history-date">${item.date ? new Date(item.date).toLocaleDateString() : 'Recently cooked'}</span>
               <span class="badge ${healthType.toLowerCase().replace(/\s+/g, '-')}">${healthType}</span>
             </div>
             <h3 style="margin-bottom:0.45rem; color:var(--secondary);">${recipe.name || 'Recipe'}</h3>
@@ -960,9 +987,15 @@ if (recommendationGrid) {
   recommendationGrid.innerHTML = recommendations.length
     ? recommendations.map(recipe => `
         <div class="insight-item">
-          <h3>${recipe.name}</h3>
-          <p>${recipe.reason}</p>
-          <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary">Cook This</a>
+          <div class="insight-copy">
+            <div class="insight-meta">
+              <span class="insight-tag">${recipe.health_label || 'Healthy Choice'}</span>
+              <span class="insight-score">Score ${Math.round(recipe.health_score || 0)}</span>
+            </div>
+            <h3>${recipe.name}</h3>
+            <p>${recipe.reason}</p>
+          </div>
+          <a href="/recipe-detail/${recipe.recipe_id}" class="btn primary insight-cta">Cook This</a>
         </div>
       `).join("")
     : '<div class="insight-item"><p>No healthy recommendations available yet.</p></div>'
@@ -973,11 +1006,28 @@ if (recentMealsGrid) {
   const meals = Array.isArray(data.recent_meals) ? data.recent_meals : []
   recentMealsGrid.innerHTML = meals.length
     ? meals.map(meal => `
-        <div class="insight-item">
-          <h3>${meal.recipe_name || "Recipe"}</h3>
-          <p>${meal.health_label || "Moderate"}</p>
-          <p>${meal.nutrition?.calories || 0} kcal</p>
-          <p>${meal.cooked_at ? new Date(meal.cooked_at).toLocaleDateString() : ""}</p>
+        <div class="insight-item recent-meal-card">
+          <div class="insight-copy">
+            <div class="insight-meta">
+              <span class="insight-tag">${meal.health_label || "Moderate"}</span>
+              <span class="insight-score">${meal.cooked_at ? new Date(meal.cooked_at).toLocaleDateString() : "Recently cooked"}</span>
+            </div>
+            <h3>${meal.recipe_name || "Recipe"}</h3>
+          </div>
+          <div class="recent-meal-grid">
+            <div class="recent-meal-stat">
+              <span>Calories</span>
+              <strong>${meal.nutrition?.calories || 0} kcal</strong>
+            </div>
+            <div class="recent-meal-stat">
+              <span>Protein</span>
+              <strong>${meal.nutrition?.protein || 0} g</strong>
+            </div>
+            <div class="recent-meal-stat">
+              <span>Fiber</span>
+              <strong>${meal.nutrition?.fiber || 0} g</strong>
+            </div>
+          </div>
         </div>
       `).join("")
     : '<div class="insight-item"><p>No meals tracked yet. Cook a recipe to start monitoring.</p></div>'

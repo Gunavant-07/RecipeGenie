@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dhokla - Gujarat Recipe AI</title>
+    <title>RecipeGenie</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
@@ -19,6 +19,11 @@
         gap: 2rem;
         align-items: start;
         margin-bottom: 2rem;
+      }
+
+      .recipe-hero-main {
+        display: grid;
+        gap: 1.15rem;
       }
 
       .recipe-visual {
@@ -43,7 +48,7 @@
         background: linear-gradient(180deg, rgba(21, 18, 12, 0.1) 0%, rgba(21, 18, 12, 0.7) 100%);
         display: flex;
         flex-direction: column;
-        justify-content: end;
+        justify-content: space-between;
         padding: 2rem;
         color: #fff;
       }
@@ -51,14 +56,34 @@
       .recipe-overlay h1 {
         font-size: clamp(2rem, 4vw, 3.6rem);
         line-height: 1.05;
-        margin-bottom: 0.8rem;
+        margin: 0;
+        max-width: 80%;
       }
 
       .recipe-badges {
         display: flex;
         flex-wrap: wrap;
         gap: 0.65rem;
-        margin-bottom: 1rem;
+      }
+
+      .recipe-hero-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: rgba(255,255,255,0.86);
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .recipe-intro-card {
+        padding: 1.2rem 1.3rem;
+      }
+
+      .recipe-intro-card p {
+        margin: 0;
+        color: #6f5a4a;
+        line-height: 1.7;
       }
 
       .recipe-summary-card,
@@ -74,6 +99,7 @@
         display: flex;
         flex-direction: column;
         gap: 1rem;
+        height: 100%;
       }
 
       .summary-grid {
@@ -119,6 +145,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
         gap: 2rem;
+        align-items: start;
       }
 
       .recipe-panel {
@@ -210,15 +237,110 @@
       }
 
       .cook-cta {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.85rem;
-        align-items: center;
         margin-top: 1.2rem;
       }
 
       .cooked-btn {
         margin-top: 0;
+      }
+
+      .tracker-panel-grid {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .post-cook-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+        align-items: start;
+      }
+
+      .post-cook-layout:empty {
+        display: none;
+      }
+
+      .tracker-dynamic-panel {
+        display: none;
+        text-align: left;
+      }
+
+      .tracker-insight-card {
+        background: #fff;
+        border-radius: 22px;
+        padding: 1.15rem 1.2rem;
+        border: 1px solid rgba(19, 136, 8, 0.08);
+        box-shadow: 0 14px 32px rgba(34, 29, 16, 0.06);
+      }
+
+      .tracker-insight-card h3 {
+        margin: 0 0 0.85rem;
+        color: #455c1d;
+      }
+
+      .tracker-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+      }
+
+      .tracker-stat {
+        background: #fff8ed;
+        border-radius: 16px;
+        padding: 0.8rem 0.85rem;
+        border: 1px solid rgba(255, 153, 51, 0.14);
+      }
+
+      .tracker-stat span {
+        display: block;
+        color: var(--gray);
+        font-size: 0.78rem;
+      }
+
+      .tracker-stat strong {
+        display: block;
+        margin-top: 0.25rem;
+        color: var(--secondary);
+      }
+
+      .tracker-note-scroll {
+        max-height: 140px;
+        overflow: auto;
+        padding-right: 0.35rem;
+        color: #6f5a4a;
+        line-height: 1.65;
+      }
+
+      .summary-recommendations {
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .summary-recipe-link {
+        display: grid;
+        gap: 0.35rem;
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: linear-gradient(180deg, #fffdf9 0%, #fff6eb 100%);
+        border: 1px solid rgba(255, 153, 51, 0.12);
+      }
+
+      .summary-recipe-link strong {
+        color: #455c1d;
+      }
+
+      .summary-recipe-link span {
+        color: #6f5a4a;
+      }
+
+      .scroll-list {
+        max-height: 360px;
+        overflow: auto;
+        padding-right: 0.35rem;
       }
 
       @media (max-width: 920px) {
@@ -242,8 +364,15 @@
           padding: 1.2rem;
         }
 
+        .recipe-overlay h1 {
+          max-width: 100%;
+        }
+
         .summary-grid,
-        .nutrition-grid {
+        .nutrition-grid,
+        .tracker-stat-grid,
+        .cook-cta,
+        .post-cook-layout {
           grid-template-columns: 1fr;
         }
 
@@ -262,7 +391,7 @@
   <body>
     <header>
       <nav class="navbar">
-        <div class="logo">Gujarat Recipe AI</div>
+        <div class="logo">RecipeGenie</div>
         <div class="hamburger">
           <i class="fas fa-bars"></i>
         </div>
@@ -301,14 +430,21 @@
     <section class="section">
       <div class="recipe-shell">
         <div class="recipe-hero">
-          <div class="recipe-visual">
-            <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" />
-            <div class="recipe-overlay">
-              <div class="recipe-badges">
-                <span class="badge moderate">{{ recipe.category }}</span>
-                <span class="badge healthy">{{ recipe.health_label }}</span>
+          <div class="recipe-hero-main">
+            <div class="recipe-visual">
+              <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" />
+              <div class="recipe-overlay">
+                <div class="recipe-badges">
+                  <span class="badge moderate">{{ recipe.category }}</span>
+                  <span class="badge healthy">{{ recipe.health_label }}</span>
+                </div>
+                <div>
+                  <span class="recipe-hero-kicker">Recipe Overview</span>
+                  <h1>{{ recipe.name }}</h1>
+                </div>
               </div>
-              <h1>{{ recipe.name }}</h1>
+            </div>
+            <div class="recipe-panel recipe-intro-card">
               <p>{{ recipe.description or 'Cook with clear steps, estimated nutrition, and health guidance before you start.' }}</p>
             </div>
           </div>
@@ -352,16 +488,18 @@
               <button class="btn primary cooked-btn" data-recipe-id="{{ recipe.recipe_id }}">Cooked This</button>
               <a href="{{ url_for('health_page') }}" class="btn" style="background:#f2eadf;">Open Health Tracker</a>
             </div>
-
-            <div id="cook-feedback" class="card" style="margin-top: 0.5rem; display:none; text-align:left;"></div>
-            <div id="healthy-recommendations" class="card" style="display:none; text-align:left;"></div>
           </div>
+        </div>
+
+        <div class="post-cook-layout">
+          <div id="cook-feedback" class="tracker-insight-card tracker-dynamic-panel"></div>
+          <div id="healthy-recommendations" class="tracker-insight-card tracker-dynamic-panel"></div>
         </div>
 
         <div class="recipe-content-grid">
           <div class="recipe-panel">
             <h2>Ingredients</h2>
-            <ul class="recipe-list">
+            <ul class="recipe-list scroll-list">
               {% for ing in recipe.ingredients %}
                 <li>{{ ing }}</li>
               {% endfor %}
@@ -398,7 +536,7 @@
             </div>
 
             <h2 style="margin-top:1.6rem;">Matched Nutrition Ingredients</h2>
-            <ul class="recipe-list">
+            <ul class="recipe-list scroll-list">
               {% for item in recipe.nutrition_matched_ingredients %}
                 <li>{{ item }}</li>
               {% endfor %}

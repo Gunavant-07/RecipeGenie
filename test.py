@@ -5,8 +5,9 @@ from collections import Counter
 from ultralytics import YOLO
 
 # Use your trained weights after training
-model = YOLO("runs/detect/train/weights/best.pt")
-
+# model = YOLO("runs/detect/train/weights/best.pt")
+model = YOLO("F:/openimage_dataset/data/model/kaggle/working/runs/detect/ingredient_model_v24/weights/best.pt")
+# F:/openimage_dataset/data/model/kaggle/working/runs/detect/ingredient_model_v24/weights/best.pt
 cap = cv2.VideoCapture(0)  # webcam
 
 if not cap.isOpened():

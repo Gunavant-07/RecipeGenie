@@ -277,6 +277,36 @@ def stream_recipe_docs():
     return list(legacy_recipe_collection().stream())
 
 
+RECIPE_CACHE_TTL_SECONDS = 300
+_recipe_cache = {
+    "recipes": None,
+    "loaded_at": None,
+}
+
+
+def load_normalized_recipe_cache():
+    recipes = []
+    for recipe_doc in stream_recipe_docs():
+        recipes.append(normalize_recipe_document(recipe_doc.id, recipe_doc.to_dict() or {}))
+    _recipe_cache["recipes"] = recipes
+    _recipe_cache["loaded_at"] = datetime.datetime.utcnow()
+    return recipes
+
+
+def get_cached_normalized_recipes(force_refresh=False):
+    loaded_at = _recipe_cache.get("loaded_at")
+    recipes = _recipe_cache.get("recipes")
+    cache_expired = (
+        loaded_at is None or
+        (datetime.datetime.utcnow() - loaded_at).total_seconds() > RECIPE_CACHE_TTL_SECONDS
+    )
+
+    if force_refresh or recipes is None or cache_expired:
+        return load_normalized_recipe_cache()
+
+    return recipes
+
+
 def fetch_recipe_by_id(recipe_id, ensure_health=True):
     _, recipe_snapshot = get_recipe_doc_ref(recipe_id)
     if not recipe_snapshot.exists:
@@ -402,6 +432,30 @@ def filter_and_sort_recipes(recipes, search="", high_rated=False, cuisine="All")
 
     filtered.sort(key=lambda recipe: (str(recipe.get("name", "")).lower(), recipe.get("recipe_id", "")))
     return filtered
+
+
+def fetch_candidate_recipes_for_listing(state="All", cuisine="All"):
+    if state and state != "All":
+        candidate_recipes = []
+        state_recipe_ids = fetch_state_recipe_ids(state)
+        print(f"[DEBUG] Loaded {len(state_recipe_ids)} indexed recipe IDs for state={state}")
+        for recipe_id in state_recipe_ids:
+            recipe = fetch_recipe_by_id(recipe_id, ensure_health=False)
+            if recipe:
+                candidate_recipes.append(recipe)
+        return candidate_recipes
+
+    selected_cuisine = normalize_cuisine_text(cuisine)
+    if selected_cuisine and selected_cuisine != "all":
+        try:
+            cuisine_docs = list(recipe_collection().where("cuisine_key", "==", selected_cuisine).stream())
+            if cuisine_docs:
+                print(f"[DEBUG] Loaded {len(cuisine_docs)} recipes using cuisine_key index for cuisine={selected_cuisine}")
+                return [normalize_recipe_document(doc.id, doc.to_dict() or {}) for doc in cuisine_docs]
+        except Exception as cuisine_query_error:
+            print("[WARN] cuisine_key query failed, using cache fallback:", cuisine_query_error)
+
+    return get_cached_normalized_recipes()
 
 
 def paginate_recipe_list(recipes, limit, last_doc_id=None):
@@ -1068,20 +1122,7 @@ def get_recipes():
 
         print(f"[DEBUG] Filters  state={state}, cuisine={cuisine}, search='{search}', high_rated={high_rated}, limit={limit}, last_doc_id={last_doc_id}")
 
-        candidate_recipes = []
-
-        if state and state != 'All':
-            state_recipe_ids = fetch_state_recipe_ids(state)
-            print(f"[DEBUG] Loaded {len(state_recipe_ids)} indexed recipe IDs for state={state}")
-            for recipe_id in state_recipe_ids:
-                recipe = fetch_recipe_by_id(recipe_id, ensure_health=False)
-                if recipe:
-                    candidate_recipes.append(recipe)
-        else:
-            for recipe_doc in stream_recipe_docs():
-                candidate_recipes.append(
-                    normalize_recipe_document(recipe_doc.id, recipe_doc.to_dict() or {})
-                )
+        candidate_recipes = fetch_candidate_recipes_for_listing(state=state, cuisine=cuisine)
 
         filtered_recipes = filter_and_sort_recipes(candidate_recipes, search=search, high_rated=high_rated, cuisine=cuisine)
         recipe_list, last_returned_id, has_more = paginate_recipe_list(

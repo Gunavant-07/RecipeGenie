@@ -3,7 +3,8 @@ import cv2
 import numpy as np
 
 print("Loading YOLO model...")
-model = YOLO("yolo11s.pt")
+model = YOLO("runs/detect/train/weights/best.pt")
+# model = YOLO("F:/openimage_dataset/data/model/kaggle/working/runs/detect/ingredient_model_v24/weights/best.pt")
 print("Model loaded")
 
 
@@ -65,4 +66,4 @@ def detect_ingredients_yolo(image_input):
 
     return detected_items
 
-detect_ingredients_yolo("static/uploads/all.jpg")
+detect_ingredients_yolo("static/uploads/2.jpg")

@@ -84,8 +84,9 @@
 
       .health-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+        grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
         gap: 1.5rem;
+        align-items: start;
       }
 
       .health-panel {
@@ -105,8 +106,93 @@
       .insight-item {
         background: linear-gradient(180deg, #fffdf9 0%, #fff7ec 100%);
         border-radius: 20px;
-        padding: 1rem;
+        padding: 1.05rem 1.1rem;
         border: 1px solid rgba(0,0,0,0.05);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .insight-copy {
+        min-width: 0;
+      }
+
+      .insight-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .insight-tag {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.38rem 0.75rem;
+        background: rgba(19, 136, 8, 0.1);
+        color: var(--secondary);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .insight-score {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.38rem 0.75rem;
+        background: rgba(255, 153, 51, 0.12);
+        color: #b86a19;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .insight-item h3 {
+        margin: 0;
+        color: #455c1d;
+        font-size: 1.08rem;
+        line-height: 1.35;
+      }
+
+      .insight-item p {
+        margin: 0.35rem 0 0;
+        color: #6f5a4a;
+        line-height: 1.55;
+      }
+
+      .insight-cta {
+        min-width: 128px;
+        white-space: nowrap;
+      }
+
+      .recent-meal-card {
+        grid-template-columns: 1fr;
+      }
+
+      .recent-meal-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+        margin-top: 0.85rem;
+      }
+
+      .recent-meal-stat {
+        background: #fff;
+        border-radius: 16px;
+        padding: 0.8rem 0.85rem;
+        border: 1px solid rgba(19, 136, 8, 0.08);
+      }
+
+      .recent-meal-stat span {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--gray);
+      }
+
+      .recent-meal-stat strong {
+        display: block;
+        margin-top: 0.25rem;
+        color: var(--secondary);
       }
 
       .tracker-warning {
@@ -120,6 +206,17 @@
         .health-overview-grid,
         .health-layout {
           grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .insight-item,
+        .recent-meal-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .insight-cta {
+          width: 100%;
         }
       }
     </style>
