@@ -16,9 +16,6 @@ venv/
 .env.*
 frontend/
 
-*.pt
-run/
-runs/
 
 # ===============================
 # ML / AI Models & Artifacts
