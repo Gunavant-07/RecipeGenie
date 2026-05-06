@@ -25,7 +25,7 @@ CORS(app)
 SINGLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\single.pt"
 MULTIPLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\multimodel.pt"
 LEGACY_MULTIPLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\best.pt"
-FALLBACK_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\runs\detect\train\weights\best.pt"
+FALLBACK_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\best.pt"
 
 DETECTION_MODEL_PATHS = {
     "single": SINGLE_MODEL_PATH if os.path.exists(SINGLE_MODEL_PATH) else LEGACY_MULTIPLE_MODEL_PATH,
