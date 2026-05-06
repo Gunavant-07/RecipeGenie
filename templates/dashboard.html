@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <style>
     .dashboard-shell {
-      max-width: 1180px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
@@ -18,16 +18,16 @@
         radial-gradient(circle at top left, rgba(255, 153, 51, 0.22), transparent 28%),
         radial-gradient(circle at bottom right, rgba(19, 136, 8, 0.18), transparent 26%),
         linear-gradient(135deg, #fffaf2 0%, #fffefb 52%, #eef7ee 100%);
-      border-radius: 34px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 24px 60px rgba(22, 18, 12, 0.08);
+      border-radius: 26px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 16px 38px rgba(22, 18, 12, 0.08);
     }
 
     .dashboard-hero-top {
       display: flex;
       justify-content: space-between;
-      gap: 1.5rem;
+      gap: 1rem;
       align-items: start;
       flex-wrap: wrap;
     }
@@ -38,13 +38,13 @@
     }
 
     .score-ring {
-      width: 128px;
-      height: 128px;
+      width: 108px;
+      height: 108px;
       border-radius: 50%;
       display: grid;
       place-items: center;
       background: conic-gradient(var(--secondary) 0deg, var(--secondary) 180deg, #efe5d7 180deg 360deg);
-      padding: 12px;
+      padding: 10px;
       flex-shrink: 0;
     }
 
@@ -61,14 +61,14 @@
     .dashboard-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 1rem;
-      margin-top: 1.5rem;
+      gap: 0.85rem;
+      margin-top: 1.2rem;
     }
 
     .dashboard-stat {
       background: rgba(255,255,255,0.88);
-      border-radius: 22px;
-      padding: 1rem 1.1rem;
+      border-radius: 18px;
+      padding: 0.9rem 1rem;
       border: 1px solid rgba(0,0,0,0.05);
     }
 
@@ -82,20 +82,20 @@
       display: block;
       margin-top: 0.3rem;
       color: var(--secondary);
-      font-size: 1.4rem;
+      font-size: 1.2rem;
     }
 
     .dashboard-layout {
       display: grid;
       grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-      gap: 1.5rem;
+      gap: 1rem;
     }
 
     .dashboard-panel {
       background: #fff;
-      border-radius: 28px;
-      padding: 1.4rem;
-      box-shadow: 0 18px 45px rgba(22, 18, 12, 0.08);
+      border-radius: 22px;
+      padding: 1.1rem;
+      box-shadow: 0 14px 34px rgba(22, 18, 12, 0.08);
       border: 1px solid rgba(0,0,0,0.05);
     }
 
@@ -110,8 +110,8 @@
     }
 
     .dashboard-list-item {
-      border-radius: 20px;
-      padding: 1rem;
+      border-radius: 16px;
+      padding: 0.9rem;
       background: linear-gradient(180deg, #fffdf9 0%, #fff7ec 100%);
       border: 1px solid rgba(0,0,0,0.05);
     }
