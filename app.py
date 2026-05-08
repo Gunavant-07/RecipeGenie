@@ -1755,7 +1755,7 @@ if __name__ == '__main__':
     #     sys.exit(0)
     # upload_all_recipes()
     print("Starting Flask server...")
-    # app.run(debug=True, port=5500)
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True, port=5500)
+    # port = int(os.environ.get("PORT", 5000))
+    # app.run(host="0.0.0.0", port=port)
     

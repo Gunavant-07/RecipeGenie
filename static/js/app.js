@@ -42,6 +42,87 @@ function getRecipeImageUrl(recipe) {
   return DEFAULT_RECIPE_IMAGE;
 }
 
+function getCurrentUserId() {
+  return auth.currentUser?.uid || localStorage.getItem('uid') || '';
+}
+
+function closeLoginRequiredDialog() {
+  document.querySelector('.auth-required-overlay')?.remove();
+}
+
+function openLoginRequiredDialog(options = {}) {
+  closeLoginRequiredDialog();
+
+  const {
+    title = 'Login required',
+    message = 'Please login to continue with this RecipeGenie feature.',
+    primaryLabel = 'Login',
+    primaryHref = '/login',
+    secondaryLabel = 'Create account',
+    secondaryHref = '/register'
+  } = options;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'auth-required-overlay';
+  overlay.innerHTML = `
+    <div class="auth-required-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-required-title">
+      <button type="button" class="auth-required-close" aria-label="Close login dialog">
+        <i class="fas fa-times"></i>
+      </button>
+      <span class="auth-required-kicker">RecipeGenie account</span>
+      <h3 id="auth-required-title">${title}</h3>
+      <p>${message}</p>
+      <div class="auth-required-actions">
+        <a href="${primaryHref}" class="btn primary">${primaryLabel}</a>
+        <a href="${secondaryHref}" class="btn auth-secondary-btn">${secondaryLabel}</a>
+      </div>
+    </div>
+  `;
+
+  const removeDialog = () => {
+    document.removeEventListener('keydown', handleEscape);
+    overlay.remove();
+  };
+
+  const handleEscape = event => {
+    if (event.key === 'Escape') {
+      removeDialog();
+    }
+  };
+
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay) {
+      removeDialog();
+    }
+  });
+
+  overlay.querySelector('.auth-required-close')?.addEventListener('click', removeDialog);
+  document.addEventListener('keydown', handleEscape);
+  document.body.appendChild(overlay);
+  overlay.querySelector('.auth-required-actions a')?.focus();
+}
+
+function requireLoggedIn(options = {}) {
+  const uid = getCurrentUserId();
+  if (uid) return uid;
+  openLoginRequiredDialog(options);
+  return null;
+}
+
+function buildInlineLoginPrompt(title, message) {
+  return `
+    <div class="login-required-inline">
+      <span class="login-required-kicker">Login needed</span>
+      <h3>${title}</h3>
+      <p>${message}</p>
+      <div class="login-required-actions">
+        <a href="/login" class="btn primary">Login</a>
+        <a href="/register" class="btn auth-secondary-btn">Create account</a>
+      </div>
+    </div>
+  `;
+}
+
 
 // Password validation function (manual, since Firebase doesn't have client-side validatePassword)
 function validatePasswordStrength(password) {
@@ -139,6 +220,7 @@ onAuthStateChanged(auth, (user) => {
     registerLinks.forEach(link => link.style.display = 'none');
     if (logoutLink) logoutLink.style.display = 'block';
     localStorage.setItem('uid', user.uid);  // For backend use
+    closeLoginRequiredDialog();
   } else {
     // User logged out - show login/register
     loginLinks.forEach(link => link.style.display = 'block');
@@ -214,8 +296,9 @@ function formatIngredient(value = '') {
 function parseIngredientItems(text = '') {
   const cleaned = String(text)
     .toLowerCase()
-    .replace(/\b(i have|i want|please add|add|use|using|with|plus|and)\b/g, ',')
-    .replace(/[.]/g, ',')
+    .replace(/\b(can you add|please add|i have|i want to add|i want|i need|ingredient|ingredients)\b/g, ' ')
+    .replace(/\b(and then|then|also|plus|with|and|as well as)\b/g, ',')
+    .replace(/[.!?]/g, ',')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -226,14 +309,51 @@ function parseIngredientItems(text = '') {
     .map(item => normalizeIngredient(item))
     .filter(Boolean);
 
-  if (parts.length === 1) {
-    const words = parts[0].split(/\s+/).filter(Boolean);
-    if (words.length >= 3 && words.length <= 8) {
-      return words;
+  if (parts.length !== 1) return parts;
+
+  const tokens = parts[0].split(/\s+/).filter(Boolean);
+  if (tokens.length <= 1) return parts;
+
+  const fillerWords = new Set(['a', 'an', 'the', 'some', 'few', 'more', 'item']);
+  const descriptorWords = new Set([
+    'red', 'green', 'black', 'white', 'yellow', 'fresh', 'dry', 'dried', 'sweet',
+    'olive', 'coconut', 'mustard', 'curry', 'spring', 'baby', 'ginger', 'garlic'
+  ]);
+  const suffixWords = new Set([
+    'oil', 'powder', 'seed', 'seeds', 'leaf', 'leaves', 'paste', 'sauce', 'flour',
+    'juice', 'milk', 'cream', 'beans', 'bean', 'pepper', 'peppers', 'masala',
+    'rice', 'dal', 'lentils', 'nuts', 'nut', 'cheese', 'chilli', 'chilies',
+    'chillies', 'chili'
+  ]);
+
+  const grouped = [];
+  for (let index = 0; index < tokens.length;) {
+    const current = tokens[index];
+    const next = tokens[index + 1];
+    const third = tokens[index + 2];
+
+    if (fillerWords.has(current)) {
+      index += 1;
+      continue;
     }
+
+    if (third && suffixWords.has(third) && (descriptorWords.has(current) || descriptorWords.has(next) || suffixWords.has(next))) {
+      grouped.push(normalizeIngredient(`${current} ${next} ${third}`));
+      index += 3;
+      continue;
+    }
+
+    if (next && (suffixWords.has(next) || descriptorWords.has(current))) {
+      grouped.push(normalizeIngredient(`${current} ${next}`));
+      index += 2;
+      continue;
+    }
+
+    grouped.push(normalizeIngredient(current));
+    index += 1;
   }
 
-  return parts;
+  return grouped.filter(Boolean);
 }
 
 function getSelectedIngredients() {
@@ -360,17 +480,30 @@ if (micBtn) {
       recognition.lang = 'en-IN';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
+      recognition.onstart = () => {
+        micBtn.disabled = true;
+        micBtn.classList.add('is-listening');
+        setDetectedMessage('Listening... say ingredients like "tomato, onion and paneer".');
+      };
       recognition.onresult = e => {
         const transcript = e.results?.[0]?.[0]?.transcript || '';
         const added = addTagsFromText(transcript);
         setDetectedMessage(
           added.length
             ? `Voice added: ${added.join(', ')}`
-            : 'Voice ingredient was already in the ingredient bar.'
+            : `I heard "${transcript}", but those ingredients were already added or could not be separated.`
         );
       };
-      recognition.onerror = () => {
-        setDetectedMessage('Voice input failed. Please try again or type the ingredient manually.');
+      recognition.onerror = event => {
+        setDetectedMessage(
+          event.error === 'no-speech'
+            ? 'No speech detected. Please try again and say ingredient names clearly.'
+            : 'Voice input failed. Please try again or type the ingredient manually.'
+        );
+      };
+      recognition.onend = () => {
+        micBtn.disabled = false;
+        micBtn.classList.remove('is-listening');
       };
       recognition.start();
     });
@@ -472,10 +605,12 @@ if (findBtn) {
 // Cooked buttons
 document.addEventListener('click', async e => {
   if (e.target.classList.contains('cooked-btn')) {
-    const uid = localStorage.getItem('uid');
+    const uid = requireLoggedIn({
+      title: 'Login to save cooked recipes',
+      message: 'Sign in so RecipeGenie can save this meal to your dashboard, history, and health tracker.'
+    });
     const recipeId = e.target.dataset.recipeId;
     if (!uid) {
-      alert('Please login first so RecipeGenie can save your meal to dashboard and health tracker.');
       return;
     }
 
@@ -576,13 +711,25 @@ document.addEventListener('click', async e => {
 // History fetch
 if (location.pathname.includes('history')) {
   (async () => {
-    const uid = localStorage.getItem('uid');
+    const uid = getCurrentUserId();
+    const container = document.querySelector('.history-container') || document.getElementById('history-list');
+    if (!container) return;
+
+    if (!uid) {
+      container.innerHTML = `
+        <div class="history-empty">
+          ${buildInlineLoginPrompt(
+            'Login to view cooking history',
+            'Your cooked recipes, health tags, and quick re-cook actions will appear here after you sign in.'
+          )}
+        </div>
+      `;
+      return;
+    }
+
     if (uid) {
       const res = await fetch(`/history/${uid}`);
       const hist = await res.json();
-      const container = document.querySelector('.history-container') || document.getElementById('history-list');
-      if (!container) return;
-
       container.innerHTML = '';
 
       if (!hist.length) {
@@ -924,9 +1071,31 @@ document.getElementById('generate-recipe-form')?.addEventListener('submit', even
 
 async function loadHealthReport(){
 
-const uid = localStorage.getItem("uid")
+const uid = getCurrentUserId()
 
-if(!uid) return
+if(!uid) {
+const suggestionsBox = document.getElementById("health-suggestions")
+if (suggestionsBox) {
+  suggestionsBox.textContent = "Login to track your meals, get healthy reminders, and see personalized recipe suggestions."
+}
+
+const recommendationGrid = document.getElementById("healthy-recommendations-grid")
+if (recommendationGrid) {
+  recommendationGrid.innerHTML = buildInlineLoginPrompt(
+    'Login to unlock health recommendations',
+    'RecipeGenie will recommend healthier next meals after it can track your cooked recipes.'
+  )
+}
+
+const recentMealsGrid = document.getElementById("recent-meals-grid")
+if (recentMealsGrid) {
+  recentMealsGrid.innerHTML = buildInlineLoginPrompt(
+    'Login to track recent meals',
+    'Your saved nutrition summary and recent cooked recipes will appear here.'
+  )
+}
+return
+}
 
 const res = await fetch(`/health-report/${uid}`)
 
@@ -1037,9 +1206,33 @@ if (recentMealsGrid) {
 
 async function loadDashboardReport() {
 
-const uid = localStorage.getItem("uid")
+const uid = getCurrentUserId()
 
-if(!uid || !document.getElementById("dashboard-total-cooked")) return
+if(!document.getElementById("dashboard-total-cooked")) return
+
+if(!uid) {
+const smartTip = document.getElementById("dashboard-smart-tip")
+if (smartTip) {
+  smartTip.textContent = "Login to save meals, track health score, and build your cooking dashboard."
+}
+
+const tipCard = document.getElementById("dashboard-tip-card")
+if (tipCard) {
+  tipCard.innerHTML = buildInlineLoginPrompt(
+    'Login to start your dashboard',
+    'RecipeGenie shows favorites, recent meals, and health insights once your account is connected.'
+  )
+}
+
+const recentMeals = document.getElementById("dashboard-recent-meals")
+if (recentMeals) {
+  recentMeals.innerHTML = buildInlineLoginPrompt(
+    'Login to see cooking activity',
+    'Your cooked recipes and meal timeline will appear here after you sign in.'
+  )
+}
+return
+}
 
 const res = await fetch(`/dashboard-report/${uid}`)
 const data = await res.json()
@@ -1559,9 +1752,11 @@ document.addEventListener('click', async e => {
   const btn = e.target.closest('.like-btn');
   if (!btn) return;
 
-  const uid = localStorage.getItem('uid');
+  const uid = requireLoggedIn({
+    title: 'Login to save favorites',
+    message: 'Sign in so RecipeGenie can save this recipe in your favorites and use it in your dashboard insights.'
+  });
   if (!uid) {
-    alert('Please login to like recipes');
     return;
   }
 

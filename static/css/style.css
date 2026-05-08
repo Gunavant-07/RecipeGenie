@@ -1641,6 +1641,95 @@ input[type="text"],
   bottom: 0.95rem;
 }
 
+.auth-required-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(12, 10, 7, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.auth-required-dialog {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 1.2rem;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #fffdf9 0%, #fff4e7 100%);
+  border: 1px solid rgba(255, 153, 51, 0.2);
+  box-shadow: 0 24px 60px rgba(12, 10, 7, 0.22);
+  color: #2d3127;
+}
+
+.auth-required-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #365c2f;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.auth-required-kicker,
+.login-required-kicker {
+  display: inline-flex;
+  margin-bottom: 0.45rem;
+  color: #b4512f;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-required-dialog h3,
+.login-required-inline h3 {
+  margin: 0;
+  color: #1f3c1d;
+  font-size: 1.4rem;
+}
+
+.auth-required-dialog p,
+.login-required-inline p {
+  margin: 0.75rem 0 0;
+  color: #6f5a4a;
+  line-height: 1.6;
+}
+
+.auth-required-actions,
+.login-required-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.auth-secondary-btn {
+  background: #fff;
+  color: #365c2f;
+  border: 1px solid rgba(19, 136, 8, 0.18);
+}
+
+.login-required-inline {
+  padding: 0.95rem;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fffdf9 0%, #fff7ec 100%);
+  border: 1px dashed rgba(255, 153, 51, 0.26);
+}
+
+.tool-btn.is-listening,
+.icon-btn.is-listening {
+  background: linear-gradient(135deg, #ef7a44 0%, #d95d39 100%);
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(217, 93, 57, 0.26);
+}
+
 @media (max-width: 980px) {
   .generate-shell {
     width: min(100% - 1rem, var(--page-width));
@@ -1695,5 +1784,10 @@ input[type="text"],
   .generated-empty,
   .generated-recipe-card {
     padding: 1rem;
+  }
+
+  .auth-required-actions,
+  .login-required-actions {
+    flex-direction: column;
   }
 }
