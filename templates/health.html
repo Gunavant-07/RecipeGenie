@@ -169,6 +169,26 @@
         grid-template-columns: 1fr;
       }
 
+      .recent-meals-scroll {
+        max-height: 560px;
+        overflow: auto;
+        padding-right: 0.3rem;
+      }
+
+      .recent-meals-scroll::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .recent-meals-scroll::-webkit-scrollbar-thumb {
+        background: rgba(180, 136, 73, 0.45);
+        border-radius: 999px;
+      }
+
+      .recent-meals-scroll::-webkit-scrollbar-track {
+        background: rgba(239, 230, 215, 0.7);
+        border-radius: 999px;
+      }
+
       .recent-meal-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -224,7 +244,7 @@
   <body>
     <header>
       <nav class="navbar">
-        <div class="logo">RecipeGenie</div>
+        <a class="logo" href="{{ url_for('home') }}" aria-label="RecipeGenie home"><img src="{{ url_for('static', filename='assets/recipegenie-logo.png') }}" alt="RecipeGenie" /></a>
         <div class="hamburger">
           <i class="fas fa-bars"></i>
         </div>
@@ -304,7 +324,7 @@
 
           <div class="health-panel">
             <h2>Recent Meals</h2>
-            <div class="insight-list" id="recent-meals-grid"></div>
+            <div class="insight-list recent-meals-scroll" id="recent-meals-grid"></div>
           </div>
         </div>
       </div>

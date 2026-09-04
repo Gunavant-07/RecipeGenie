@@ -4,33 +4,26 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 // Your web app's Firebase configuration
 
-// const firebaseConfig = {
-//   apiKey: "AIzaSyBjbPSpwe2rXpBgq6ps9nV-7PuQ0opX3OE",
-//   authDomain: "recipegenie-cf868.firebaseapp.com",
-//   projectId: "recipegenie-cf868",
-//   storageBucket: "recipegenie-cf868.firebasestorage.app",
-//   messagingSenderId: "1048359865319",
-//   appId: "1:1048359865319:web:d3075bb454636abe964b42",
-//   measurementId: "G-48J5NK60JB"
-// };
-
 const firebaseConfig = {
-  apiKey: "AIzaSyAtaYuBm0oQKVS2XWhSAIuYUaCz4d0rro0",
-  authDomain: "recipegenie-3457e.firebaseapp.com",
-  projectId: "recipegenie-3457e",
-  storageBucket: "recipegenie-3457e.firebasestorage.app",
-  messagingSenderId: "695967048126",
-  appId: "1:695967048126:web:ad9c5e1c22635a75a299ef",
-  measurementId: "G-12RDHMZ6WE"
+  apiKey: "AIzaSyAzXTvL_8AluvsJjCv9Wn98mgLXtkj2I50",
+  authDomain: "recipegenie-07.firebaseapp.com",
+  databaseURL: "https://recipegenie-07-default-rtdb.firebaseio.com",
+  projectId: "recipegenie-07",
+  storageBucket: "recipegenie-07.firebasestorage.app",
+  messagingSenderId: "977449491053",
+  appId: "1:977449491053:web:11e2d54aa81a219a59bd64",
+  measurementId: "G-GV6JZFH230"
 };
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 const auth = getAuth(app);
+document.body.classList.add('auth-pending');
 
 const DEFAULT_RECIPE_IMAGE = 'https://recipesimages.edgeone.app/default.jpg';
 
@@ -123,6 +116,15 @@ function buildInlineLoginPrompt(title, message) {
   `;
 }
 
+function setAuthMessage(errorEl, successEl, errorMessage = '', successMessage = '') {
+  if (errorEl) {
+    errorEl.textContent = errorMessage;
+  }
+  if (successEl) {
+    successEl.textContent = successMessage;
+  }
+}
+
 
 // Password validation function (manual, since Firebase doesn't have client-side validatePassword)
 function validatePasswordStrength(password) {
@@ -147,43 +149,120 @@ function validatePasswordStrength(password) {
 // Register Form (for register.html)
 const registerForm = document.querySelector('#register-form');
 if (registerForm) {
-  registerForm.addEventListener('submit', async e => {
-    e.preventDefault();
-    const name = document.querySelector('#full-name')?.value || document.querySelector('#reg-name')?.value;
-    const email = document.querySelector('#reg-email')?.value;
-    const password = document.querySelector('#password')?.value || document.querySelector('#reg-password')?.value;
-    const confirm = document.querySelector('#confirm-password')?.value || document.querySelector('#reg-confirm')?.value;
-    const errorEl = document.querySelector('#reg-error') || document.querySelector('.error');
+  const nameInput = document.querySelector('#reg-name');
+  const emailInput = document.querySelector('#reg-email');
+  const passwordInput = document.querySelector('#password');
+  const confirmInput = document.querySelector('#confirm-password');
+  const codeInput = document.querySelector('#register-verification-code');
+  const sendCodeBtn = document.querySelector('#send-register-code');
+  const verifyBtn = document.querySelector('#verify-register-code');
+  const codeShell = document.querySelector('#register-code-shell');
+  const errorEl = document.querySelector('#reg-error') || document.querySelector('.error');
+  const successEl = document.querySelector('#reg-success');
+  const codeHelp = document.querySelector('#register-code-help');
 
+  const collectRegistrationData = () => ({
+    name: nameInput?.value?.trim() || '',
+    email: emailInput?.value?.trim() || '',
+    password: passwordInput?.value || '',
+    confirm: confirmInput?.value || ''
+  });
+
+  const validateRegistrationData = () => {
+    const { name, email, password, confirm } = collectRegistrationData();
+    if (!name || !email || !password || !confirm) {
+      return 'Please complete all registration fields.';
+    }
     if (password !== confirm) {
-      errorEl.textContent = 'Passwords do not match!';
-      return;
+      return 'Passwords do not match!';
     }
 
     const validation = validatePasswordStrength(password);
     if (!validation.isValid) {
-      errorEl.innerHTML = validation.errors.join('<br>');
+      return validation.errors.join(' ');
+    }
+    return '';
+  };
+
+  sendCodeBtn?.addEventListener('click', async () => {
+    const validationMessage = validateRegistrationData();
+    if (validationMessage) {
+      setAuthMessage(errorEl, successEl, validationMessage, '');
       return;
     }
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      if (name) await updateProfile(user, { displayName: name });
+    const { name, email, password } = collectRegistrationData();
+    sendCodeBtn.disabled = true;
+    setAuthMessage(errorEl, successEl, '', 'Sending verification code...');
 
-      const res = await fetch('/save-user', {
+    try {
+      const res = await fetch('/auth/send-registration-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid: user.uid,
-          name: name,
-          email: email
-        })
+        body: JSON.stringify({ name, email, password })
       });
-      localStorage.setItem("uid", user.uid);
-      window.location.href = "/login";
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
+      if (codeShell) {
+        codeShell.style.display = 'grid';
+      }
+      if (verifyBtn) {
+        verifyBtn.disabled = false;
+      }
+      if (codeHelp) {
+        codeHelp.textContent = `We sent a 6-digit verification code to ${email}. Enter it here to finish registration.`;
+      }
+      setAuthMessage(errorEl, successEl, '', data.message || 'Verification code sent successfully.');
+      codeInput?.focus();
     } catch (error) {
-      errorEl.textContent = error.message;
+      setAuthMessage(errorEl, successEl, error.message || 'Unable to send verification code.', '');
+    } finally {
+      sendCodeBtn.disabled = false;
+    }
+  });
+
+  registerForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const validationMessage = validateRegistrationData();
+    if (validationMessage) {
+      setAuthMessage(errorEl, successEl, validationMessage, '');
+      return;
+    }
+
+    const code = codeInput?.value?.trim() || '';
+    if (!code || code.length !== 6) {
+      setAuthMessage(errorEl, successEl, 'Enter the 6-digit verification code from your email.', '');
+      return;
+    }
+
+    const { email, password } = collectRegistrationData();
+    verifyBtn.disabled = true;
+    setAuthMessage(errorEl, successEl, '', 'Verifying code and creating your account...');
+
+    try {
+      const verifyRes = await fetch('/auth/verify-registration-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code })
+      });
+      const verifyData = await verifyRes.json();
+
+      if (!verifyRes.ok) {
+        throw new Error(verifyData.error || `Server error ${verifyRes.status}`);
+      }
+
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      localStorage.setItem('uid', userCredential.user.uid);
+      setAuthMessage(errorEl, successEl, '', 'Account verified successfully. Redirecting...');
+      window.location.href = '/home';
+    } catch (error) {
+      setAuthMessage(errorEl, successEl, error.message || 'Unable to verify registration code.', '');
+    } finally {
+      verifyBtn.disabled = false;
     }
   });
 }
@@ -191,40 +270,233 @@ if (registerForm) {
 // Login Form (for login.html)
 const loginForm = document.querySelector('#login-form');
 if (loginForm) {
+  const forgotPasswordBtn = document.querySelector('#forgot-password-btn');
+  const resendVerificationBtn = document.querySelector('#resend-verification-btn');
+  const emailInput = document.querySelector('#login-email') || loginForm.querySelector('input[type="email"]');
+  const passwordInput = document.querySelector('#login-password') || loginForm.querySelector('input[type="password"]');
+  const errorEl = document.querySelector('#login-error') || document.querySelector('.error');
+  const successEl = document.querySelector('#login-success');
+  const statusPanel = document.querySelector('#login-status-panel');
+  const statusKicker = document.querySelector('#login-status-kicker');
+  const statusTitle = document.querySelector('#login-status-title');
+  const statusMessage = document.querySelector('#login-status-message');
+  let loginStatusRequestToken = 0;
+
+  const updateLoginStatusPanel = ({ mode = 'neutral', kicker = 'Account status', title = 'Waiting for email', message = '' } = {}) => {
+    if (!statusPanel || !statusKicker || !statusTitle || !statusMessage) return;
+    statusPanel.style.display = 'grid';
+    statusPanel.classList.remove('auth-status-neutral', 'auth-status-verified', 'auth-status-unverified', 'auth-status-missing');
+    statusPanel.classList.add(`auth-status-${mode}`);
+    statusKicker.textContent = kicker;
+    statusTitle.textContent = title;
+    statusMessage.textContent = message;
+  };
+
+  const hideResendButton = () => {
+    if (resendVerificationBtn) {
+      resendVerificationBtn.style.display = 'none';
+    }
+  };
+
+  const checkLoginEmailStatus = async () => {
+    const email = emailInput?.value?.trim() || '';
+    if (!email) {
+      if (statusPanel) {
+        statusPanel.style.display = 'none';
+      }
+      hideResendButton();
+      return;
+    }
+
+    const requestToken = ++loginStatusRequestToken;
+    updateLoginStatusPanel({
+      mode: 'neutral',
+      kicker: 'Checking status',
+      title: 'Looking up your account',
+      message: 'RecipeGenie is checking whether this email is already verified.'
+    });
+    hideResendButton();
+
+    try {
+      const res = await fetch('/auth/email-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (requestToken !== loginStatusRequestToken) return;
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
+      if (!data.exists) {
+        updateLoginStatusPanel({
+          mode: 'missing',
+          kicker: 'Account not found',
+          title: 'No RecipeGenie account yet',
+          message: data.message || 'Create an account to continue.'
+        });
+        return;
+      }
+
+      if (data.registration_verified) {
+        updateLoginStatusPanel({
+          mode: 'verified',
+          kicker: 'Verified account',
+          title: 'This email is ready to log in',
+          message: data.message || 'Enter your password to continue.'
+        });
+        return;
+      }
+
+      updateLoginStatusPanel({
+        mode: 'unverified',
+        kicker: 'Verification pending',
+        title: 'Finish email verification first',
+        message: data.message || 'Use the resend button below if you need a fresh 6-digit code.'
+      });
+      if (resendVerificationBtn) {
+        resendVerificationBtn.style.display = 'inline-flex';
+      }
+    } catch (error) {
+      if (requestToken !== loginStatusRequestToken) return;
+      updateLoginStatusPanel({
+        mode: 'missing',
+        kicker: 'Status unavailable',
+        title: 'Unable to check this account',
+        message: error.message || 'Please try again in a moment.'
+      });
+    }
+  };
+
   loginForm.addEventListener('submit', async e => {
     e.preventDefault();
-    const email = document.querySelector('#login-email')?.value || loginForm.querySelector('input[type="email"]').value;
-    const password = document.querySelector('#login-password')?.value || loginForm.querySelector('input[type="password"]').value;
-    const errorEl = document.querySelector('#login-error') || document.querySelector('.error');
+    const email = emailInput?.value?.trim() || '';
+    const password = passwordInput?.value || '';
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      const statusRes = await fetch(`/auth/account-status/${user.uid}`);
+      const statusData = await statusRes.json();
+
+      if (!statusRes.ok) {
+        throw new Error(statusData.error || `Server error ${statusRes.status}`);
+      }
+
+      if (!statusData.registration_verified) {
+        await signOut(auth);
+        localStorage.removeItem('uid');
+        updateLoginStatusPanel({
+          mode: 'unverified',
+          kicker: 'Verification pending',
+          title: 'This account still needs verification',
+          message: 'Use the resend verification button below if you need a new 6-digit code.'
+        });
+        if (resendVerificationBtn) {
+          resendVerificationBtn.style.display = 'inline-flex';
+        }
+        setAuthMessage(
+          errorEl,
+          successEl,
+          'Your account is not verified yet. Please complete the 6-digit email verification on the register page.',
+          ''
+        );
+        return;
+      }
+
       localStorage.setItem("uid", user.uid);
+      setAuthMessage(errorEl, successEl, '', 'Login successful. Redirecting...');
       window.location.href = '/home';
     } catch (error) {
-      errorEl.textContent = error.message;
+      setAuthMessage(errorEl, successEl, error.message || 'Unable to login.', '');
+    }
+  });
+
+  emailInput?.addEventListener('blur', checkLoginEmailStatus);
+  emailInput?.addEventListener('change', checkLoginEmailStatus);
+
+  resendVerificationBtn?.addEventListener('click', async () => {
+    const email = emailInput?.value?.trim() || '';
+    if (!email) {
+      setAuthMessage(errorEl, successEl, 'Enter your email first so we know where to resend the verification code.', '');
+      return;
+    }
+
+    resendVerificationBtn.disabled = true;
+    setAuthMessage(errorEl, successEl, '', 'Sending a new verification code...');
+
+    try {
+      const res = await fetch('/auth/resend-registration-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
+      updateLoginStatusPanel({
+        mode: 'unverified',
+        kicker: 'Verification code sent',
+        title: 'Check your email inbox',
+        message: data.message || `A fresh 6-digit code was sent to ${email}.`
+      });
+      setAuthMessage(errorEl, successEl, '', data.message || `A fresh 6-digit code was sent to ${email}.`);
+    } catch (error) {
+      setAuthMessage(errorEl, successEl, error.message || 'Unable to resend verification code.', '');
+    } finally {
+      resendVerificationBtn.disabled = false;
+    }
+  });
+
+  forgotPasswordBtn?.addEventListener('click', async () => {
+    const email = emailInput?.value?.trim() || '';
+    if (!email) {
+      setAuthMessage(errorEl, successEl, 'Enter your email first to receive a password reset link.', '');
+      return;
+    }
+
+    forgotPasswordBtn.disabled = true;
+    setAuthMessage(errorEl, successEl, '', 'Sending password reset link...');
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setAuthMessage(errorEl, successEl, '', `Password reset link sent to ${email}. Check your inbox.`);
+    } catch (error) {
+      setAuthMessage(errorEl, successEl, error.message || 'Unable to send password reset link.', '');
+    } finally {
+      forgotPasswordBtn.disabled = false;
     }
   });
 }
 
 // Auth state listener (updates navbar, etc.)
 onAuthStateChanged(auth, (user) => {
+  const body = document.body;
   const loginLinks = document.querySelectorAll('.login-link');
   const registerLinks = document.querySelectorAll('.register-link');
   const logoutLink = document.querySelector('.logout-link');
 
+  body.classList.remove('auth-pending', 'auth-logged-in', 'auth-logged-out');
+  body.classList.add('auth-ready');
+
   if (user) {
+    body.classList.add('auth-logged-in');
     // User logged in - hide login/register, show logout
     loginLinks.forEach(link => link.style.display = 'none');
     registerLinks.forEach(link => link.style.display = 'none');
-    if (logoutLink) logoutLink.style.display = 'block';
+    if (logoutLink) logoutLink.style.display = '';
     localStorage.setItem('uid', user.uid);  // For backend use
     closeLoginRequiredDialog();
   } else {
+    body.classList.add('auth-logged-out');
     // User logged out - show login/register
-    loginLinks.forEach(link => link.style.display = 'block');
-    registerLinks.forEach(link => link.style.display = 'block');
+    loginLinks.forEach(link => link.style.display = '');
+    registerLinks.forEach(link => link.style.display = '');
     if (logoutLink) logoutLink.style.display = 'none';
     localStorage.removeItem('uid');
   }
@@ -470,43 +742,152 @@ updateIngredientSummary();
 const micBtn = document.getElementById('voice-ingredient') || document.querySelector('.mic');
 if (micBtn) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let ingredientRecognition = null;
+  let ingredientRecognitionActive = false;
+  let ingredientRecognitionStoppedByUser = false;
+
+  const resetVoiceButtonState = () => {
+    ingredientRecognitionActive = false;
+    micBtn.disabled = false;
+    micBtn.classList.remove('is-listening');
+  };
+
+  const stopIngredientRecognition = () => {
+    ingredientRecognitionStoppedByUser = true;
+    if (ingredientRecognition) {
+      try {
+        ingredientRecognition.stop();
+      } catch (error) {
+        console.warn('Unable to stop voice recognition cleanly:', error);
+      }
+    }
+    resetVoiceButtonState();
+  };
+
+  const startIngredientRecognition = async () => {
+    if (!SpeechRecognition) return;
+
+    if (!window.isSecureContext) {
+      setDetectedMessage('Voice input needs a secure browser context. Open RecipeGenie on localhost or HTTPS and try again.');
+      return;
+    }
+
+    if (ingredientRecognitionActive) {
+      stopIngredientRecognition();
+      setDetectedMessage('Voice input stopped.');
+      return;
+    }
+
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+      } catch (error) {
+        const permissionMessage = error?.name === 'NotAllowedError'
+          ? 'Microphone permission was blocked. Allow microphone access in your browser and try again.'
+          : 'Microphone access is unavailable on this device right now. Please check your browser permissions.';
+        setDetectedMessage(permissionMessage);
+        return;
+      }
+    }
+
+    if (!ingredientRecognition) {
+      ingredientRecognition = new SpeechRecognition();
+      ingredientRecognition.lang = 'en-IN';
+      ingredientRecognition.interimResults = true;
+      ingredientRecognition.continuous = true;
+      ingredientRecognition.maxAlternatives = 1;
+
+      ingredientRecognition.onstart = () => {
+        ingredientRecognitionStoppedByUser = false;
+        ingredientRecognitionActive = true;
+        micBtn.disabled = false;
+        micBtn.classList.add('is-listening');
+        setDetectedMessage('Listening... say ingredients like "tomato, onion, paneer and olive oil". Tap the mic again to stop.');
+      };
+
+      ingredientRecognition.onresult = event => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const transcript = event.results[index]?.[0]?.transcript || '';
+          if (event.results[index].isFinal) {
+            finalTranscript += ` ${transcript}`;
+          } else {
+            interimTranscript += ` ${transcript}`;
+          }
+        }
+
+        const cleanFinal = finalTranscript.trim();
+        const cleanInterim = interimTranscript.trim();
+
+        if (cleanInterim) {
+          setDetectedMessage(`Listening: ${cleanInterim}`);
+        }
+
+        if (cleanFinal) {
+          const added = addTagsFromText(cleanFinal);
+          setDetectedMessage(
+            added.length
+              ? `Voice added: ${added.join(', ')}`
+              : `I heard "${cleanFinal}", but those ingredients were already added or could not be separated.`
+          );
+        }
+      };
+
+      ingredientRecognition.onerror = event => {
+        const errorName = event?.error || 'unknown';
+        const errorMap = {
+          'not-allowed': 'Microphone permission was denied. Allow microphone access in your browser and try again.',
+          'service-not-allowed': 'Speech recognition is blocked in this browser. Try Chrome or Edge and allow microphone access.',
+          'audio-capture': 'No microphone was detected. Connect a microphone and try again.',
+          'network': 'Speech recognition had a network problem. Check your internet connection and try again.',
+          'no-speech': 'No speech was detected. Speak ingredient names clearly and try again.',
+          'aborted': 'Voice input was stopped before speech was captured.'
+        };
+
+        if (errorName !== 'aborted') {
+          setDetectedMessage(errorMap[errorName] || 'Voice input failed. Please try again or type ingredients manually.');
+        }
+
+        resetVoiceButtonState();
+      };
+
+      ingredientRecognition.onend = () => {
+        const shouldRestart = ingredientRecognitionActive && !ingredientRecognitionStoppedByUser;
+        resetVoiceButtonState();
+
+        if (shouldRestart) {
+          try {
+            ingredientRecognition.start();
+          } catch (error) {
+            console.warn('Voice recognition restart failed:', error);
+            setDetectedMessage('Voice input stopped unexpectedly. Please tap the microphone and try again.');
+          }
+        }
+      };
+    }
+
+    try {
+      ingredientRecognitionStoppedByUser = false;
+      ingredientRecognition.start();
+    } catch (error) {
+      if (String(error?.message || '').toLowerCase().includes('already started')) {
+        return;
+      }
+      console.error('Voice recognition start failed:', error);
+      setDetectedMessage('Voice input could not start. Please try again or type ingredients manually.');
+      resetVoiceButtonState();
+    }
+  };
 
   if (!SpeechRecognition) {
     micBtn.disabled = true;
     micBtn.title = 'Voice input is not supported in this browser';
+    setDetectedMessage('Voice input is not supported in this browser. Use Chrome or Edge, or type ingredients manually.');
   } else {
-    micBtn.addEventListener('click', () => {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-IN';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.onstart = () => {
-        micBtn.disabled = true;
-        micBtn.classList.add('is-listening');
-        setDetectedMessage('Listening... say ingredients like "tomato, onion and paneer".');
-      };
-      recognition.onresult = e => {
-        const transcript = e.results?.[0]?.[0]?.transcript || '';
-        const added = addTagsFromText(transcript);
-        setDetectedMessage(
-          added.length
-            ? `Voice added: ${added.join(', ')}`
-            : `I heard "${transcript}", but those ingredients were already added or could not be separated.`
-        );
-      };
-      recognition.onerror = event => {
-        setDetectedMessage(
-          event.error === 'no-speech'
-            ? 'No speech detected. Please try again and say ingredient names clearly.'
-            : 'Voice input failed. Please try again or type the ingredient manually.'
-        );
-      };
-      recognition.onend = () => {
-        micBtn.disabled = false;
-        micBtn.classList.remove('is-listening');
-      };
-      recognition.start();
-    });
+    micBtn.addEventListener('click', startIngredientRecognition);
   }
 }
 
@@ -730,24 +1111,41 @@ if (location.pathname.includes('history')) {
     if (uid) {
       const res = await fetch(`/history/${uid}`);
       const hist = await res.json();
+      const sortedHistory = Array.isArray(hist)
+        ? [...hist].sort((left, right) => {
+            const leftTime = new Date(left?.cooked_at || left?.date || 0).getTime();
+            const rightTime = new Date(right?.cooked_at || right?.date || 0).getTime();
+            return rightTime - leftTime;
+          })
+        : [];
       container.innerHTML = '';
 
-      if (!hist.length) {
+      if (!sortedHistory.length) {
         container.innerHTML = '<div class="history-empty">Cook a recipe to start building your cooking history.</div>';
         return;
       }
 
-      hist.forEach(item => {
+      sortedHistory.forEach(item => {
         const recipe = item.recipe || {};
         const healthType = recipe.health_label || recipe.category || 'Moderate';
         const imageUrl = getRecipeImageUrl(recipe);
+        const cookedStamp = item.cooked_at || item.date;
+        const cookedLabel = cookedStamp
+          ? new Date(cookedStamp).toLocaleString([], {
+              year: 'numeric',
+              month: 'numeric',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            })
+          : 'Recently cooked';
         const div = document.createElement('div');
         div.classList.add('history-card');
         div.innerHTML = `
           <img src="${imageUrl}" alt="${recipe.name || 'Recipe'}" onerror="this.src='${DEFAULT_RECIPE_IMAGE}'">
           <div class="history-card-body">
             <div class="history-meta">
-              <span class="history-date">${item.date ? new Date(item.date).toLocaleDateString() : 'Recently cooked'}</span>
+              <span class="history-date">${cookedLabel}</span>
               <span class="badge ${healthType.toLowerCase().replace(/\s+/g, '-')}">${healthType}</span>
             </div>
             <h3 style="margin-bottom:0.45rem; color:var(--secondary);">${recipe.name || 'Recipe'}</h3>
@@ -1231,6 +1629,14 @@ if (recentMeals) {
     'Your cooked recipes and meal timeline will appear here after you sign in.'
   )
 }
+
+const favoritesList = document.getElementById("dashboard-favorites-list")
+if (favoritesList) {
+  favoritesList.innerHTML = buildInlineLoginPrompt(
+    'Login to see favorite recipes',
+    'Liked recipes will appear here with direct links to recipe details once you sign in.'
+  )
+}
 return
 }
 
@@ -1286,6 +1692,8 @@ if (recentMeals) {
     : '<div class="dashboard-list-item">Cook a recipe to start seeing your meal history.</div>'
 }
 
+loadFavorites()
+
 }
 
 console.log(document.getElementById("recipes-container"));
@@ -1293,26 +1701,44 @@ console.log(document.getElementById("favorites-container"));
 
 // Load favorites
 async function loadFavorites() {
-  const uid = localStorage.getItem('uid');
-  const favGrid = document.querySelector('.favorite-grid');
-  if (!uid || !favGrid) return;
+  const uid = getCurrentUserId();
+  const favoritesList = document.getElementById('dashboard-favorites-list');
+  if (!uid || !favoritesList) return;
 
   try {
     const res = await fetch(`/favorites/${uid}`);
     if (!res.ok) throw new Error('Failed to load favorites');
 
     const favorites = await res.json();
-    favGrid.innerHTML = favorites.length === 0 
-      ? '<p style="text-align:center; padding:2rem;">You haven\'t liked any recipes yet.</p>'
-      : '';
-
-    favorites.forEach(fav => {
-      fav.isFavorite = true;
-      const card = createRecipeCard(fav);
-      favGrid.appendChild(card);
-    });
+    favoritesList.innerHTML = favorites.length === 0
+      ? '<div class="dashboard-list-item">You have not liked any recipes yet. Save a recipe to see it here.</div>'
+      : favorites.map(fav => {
+          const recipeName = fav.name || 'Recipe';
+          const healthType = fav.health_label || fav.category || 'Moderate';
+          const calories = Math.round(fav.nutrition?.calories || 0);
+          const healthScore = Math.round(fav.health_score || 0);
+          const recipeId = fav.recipe_id || '';
+          return `
+            <article class="dashboard-favorite-item">
+              <div class="dashboard-favorite-top">
+                <div>
+                  <strong>${recipeName}</strong>
+                  <div class="dashboard-favorite-meta">
+                    <span>Health score ${healthScore}</span>
+                    <span>${calories} kcal</span>
+                  </div>
+                </div>
+                <span class="badge ${healthType.toLowerCase().replace(/\s+/g, '-')}">${healthType}</span>
+              </div>
+              <div class="dashboard-favorite-actions">
+                <a href="/recipe-detail/${recipeId}" class="btn primary">View Recipe</a>
+              </div>
+            </article>
+          `;
+        }).join('');
   } catch (err) {
     console.error('Favorites error:', err);
+    favoritesList.innerHTML = '<div class="dashboard-list-item">Unable to load favorite recipes right now.</div>';
   }
 }
 

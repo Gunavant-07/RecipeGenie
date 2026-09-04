@@ -1,4 +1,3 @@
-
 from ultralytics import YOLO
 from flask import Flask, request, jsonify, render_template ,redirect, url_for
 from flask_cors import CORS
@@ -10,17 +9,49 @@ from nutrition_utils import analyze_recipe_nutrition, recommendation_reason
 import datetime
 import random
 from firebase_config import database,datab
-from google.api_core.exceptions import FailedPrecondition
+from google.api_core.exceptions import FailedPrecondition, NotFound
 import re
 import numpy as np
 import cv2
 import ast
 import os
+import sys
+import smtplib
+import ssl
+from email.message import EmailMessage
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
+def load_local_env(path=".env"):
+    env_values = {}
+    if not os.path.exists(path):
+        return env_values
+
+    with open(path, "r", encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            env_values[key.strip()] = value.strip().strip('"').strip("'")
+    return env_values
+
+
+LOCAL_ENV = load_local_env()
+
+
+def get_env_setting(key, default=""):
+    return os.getenv(key) or LOCAL_ENV.get(key, default)
 
 app = Flask(__name__)
 CORS(app)  
+app.config['AUTH_VERIFICATION_EXPIRY_MINUTES'] = 10
+app.config['SMTP_HOST'] = get_env_setting('SMTP_HOST', 'smtp.gmail.com')
+app.config['SMTP_PORT'] = int(get_env_setting('SMTP_PORT', '587') or 587)
+app.config['SMTP_USERNAME'] = get_env_setting('SMTP_USERNAME', 'smartyboy4873@gmail.com')
+app.config['SMTP_PASSWORD'] = get_env_setting('SMTP_PASSWORD', 'xyceqzbexniddhiv')
+app.config['SMTP_FROM_EMAIL'] = get_env_setting('SMTP_FROM_EMAIL', app.config['SMTP_USERNAME'])
+app.config['SMTP_USE_TLS'] = str(get_env_setting('SMTP_USE_TLS', 'true')).lower() != 'false'
 
 SINGLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\single.pt"
 MULTIPLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\multimodel.pt"
@@ -140,36 +171,327 @@ def generate_recipe_page():
 def register_page():
     return render_template('register.html')
 
-# user authentication on register
+def verification_store():
+    return database.child("auth_verifications")
+
+
+def user_store():
+    return database.child("users")
+
+
+def create_user_profile(uid, name, email, registration_verified=True):
+    existing = user_store().child(uid).get() or {}
+    user_store().child(uid).set({
+        "name": name,
+        "email": email,
+        "healthy_count": existing.get("healthy_count", 0),
+        "fastfood_count": existing.get("fastfood_count", 0),
+        "unhealthy_count": existing.get("unhealthy_count", 0),
+        "moderate_count": existing.get("moderate_count", 0),
+        "health_score": existing.get("health_score", 0),
+        "last_notification": existing.get("last_notification", ""),
+        "registration_verified": registration_verified,
+        "verified_at": datetime.datetime.utcnow().isoformat() if registration_verified else existing.get("verified_at", "")
+    })
+
+
+def auth_status_for_user(uid):
+    user_profile = user_store().child(uid).get() or {}
+    if not user_profile:
+        return True
+    return bool(user_profile.get("registration_verified", True))
+
+
+def generate_verification_code():
+    return f"{random.SystemRandom().randint(0, 999999):06d}"
+
+
+def verification_expiry_iso():
+    expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=app.config['AUTH_VERIFICATION_EXPIRY_MINUTES'])
+    return expires_at.isoformat()
+
+
+def is_verification_expired(expires_at):
+    if not expires_at:
+        return True
+    try:
+        return datetime.datetime.utcnow() > datetime.datetime.fromisoformat(str(expires_at))
+    except ValueError:
+        return True
+
+
+def send_email_message(recipient, subject, plain_text, html_text=None):
+    host = app.config['SMTP_HOST']
+    username = app.config['SMTP_USERNAME']
+    password = app.config['SMTP_PASSWORD']
+    sender = app.config['SMTP_FROM_EMAIL']
+
+    if not host or not username or not password or not sender:
+        raise RuntimeError("SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, and SMTP_FROM_EMAIL.")
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = recipient
+    message.set_content(plain_text)
+
+    if html_text:
+        message.add_alternative(html_text, subtype="html")
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP(host, app.config['SMTP_PORT']) as server:
+        if app.config['SMTP_USE_TLS']:
+            server.starttls(context=context)
+        server.login(username, password)
+        server.send_message(message)
+
+
+def send_registration_verification_email(name, email, verification_code):
+    expiry_minutes = app.config['AUTH_VERIFICATION_EXPIRY_MINUTES']
+    safe_name = name or "RecipeGenie User"
+    subject = "Your RecipeGenie verification code"
+    plain_text = (
+        f"Hello {safe_name},\n\n"
+        f"Your RecipeGenie verification code is: {verification_code}\n\n"
+        f"This code expires in {expiry_minutes} minutes.\n"
+        f"If you did not request this, please ignore this email.\n"
+    )
+    html_text = f"""
+      <div style="font-family:Poppins,Arial,sans-serif;padding:24px;background:#fffaf2;color:#23311d;">
+        <h2 style="margin:0 0 12px;">Verify your RecipeGenie account</h2>
+        <p style="margin:0 0 18px;">Hello {safe_name}, use this 6-digit code to finish creating your account.</p>
+        <div style="display:inline-block;padding:14px 20px;border-radius:16px;background:#138808;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:0.25em;">
+          {verification_code}
+        </div>
+        <p style="margin:18px 0 0;color:#6f5a4a;">This code expires in {expiry_minutes} minutes.</p>
+      </div>
+    """
+    send_email_message(email, subject, plain_text, html_text)
+
+
+def upsert_registration_verification(uid, name, email):
+    verification_code = generate_verification_code()
+    verification_store().child(uid).set({
+        "email": email,
+        "name": name,
+        "code_hash": generate_password_hash(verification_code),
+        "expires_at": verification_expiry_iso(),
+        "purpose": "register",
+        "attempts": 0,
+        "created_at": datetime.datetime.utcnow().isoformat()
+    })
+    send_registration_verification_email(name, email, verification_code)
+    return verification_code
+
+
+def validate_password_strength(password):
+    password = str(password or "")
+    errors = []
+    if len(password) < 6:
+        errors.append("Must be at least 6 characters long.")
+    if not re.search(r"[a-z]", password):
+        errors.append("Must contain at least one lowercase letter.")
+    if not re.search(r"[A-Z]", password):
+        errors.append("Must contain at least one uppercase letter.")
+    if not re.search(r"\d", password):
+        errors.append("Must contain at least one number.")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        errors.append("Must contain at least one special character.")
+    return errors
+
+
+def normalize_email(value):
+    return str(value or "").strip().lower()
+
+
 @app.route('/save-user', methods=['POST'])
 def save_user():
     try:
-        data = request.get_json()
-
-        if not data:
-            return jsonify({"error": "No JSON received"}), 400
-
-        print("Received:", data)
-
+        data = request.get_json() or {}
         uid = data.get("uid")
         name = data.get("name")
-        email = data.get("email")
+        email = normalize_email(data.get("email"))
 
         if not uid:
             return jsonify({"error": "UID missing"}), 400
 
-        database.child("users").child(uid).set({
-            "name": name,
-            "email": email,
-            "healthy_count": 0,
-            "fastfood_count": 0,
-            "unhealthy_count": 0,
-            "moderate_count": 0,
-            "health_score": 0,
-            "last_notification": ""
-        })
-
+        create_user_profile(uid, name, email, registration_verified=True)
         return jsonify({"message": "User saved"}), 200
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/auth/send-registration-code', methods=['POST'])
+def send_registration_code():
+    try:
+        data = request.get_json() or {}
+        name = str(data.get("name") or "").strip()
+        email = normalize_email(data.get("email"))
+        password = str(data.get("password") or "")
+
+        if not name or not email or not password:
+            return jsonify({"error": "Name, email, and password are required."}), 400
+
+        password_errors = validate_password_strength(password)
+        if password_errors:
+            return jsonify({"error": " ".join(password_errors)}), 400
+
+        existing_user = None
+        try:
+            existing_user = auth.get_user_by_email(email)
+        except Exception:
+            existing_user = None
+
+        if existing_user and auth_status_for_user(existing_user.uid):
+            return jsonify({"error": "This email is already registered. Please login instead."}), 400
+
+        if existing_user:
+            firebase_user = auth.update_user(existing_user.uid, password=password, display_name=name, email_verified=False)
+            uid = firebase_user.uid
+        else:
+            firebase_user = auth.create_user(email=email, password=password, display_name=name, email_verified=False)
+            uid = firebase_user.uid
+
+        upsert_registration_verification(uid, name, email)
+        create_user_profile(uid, name, email, registration_verified=False)
+
+        return jsonify({
+            "message": "Verification code sent to your email.",
+            "email": email
+        }), 200
+
+    except RuntimeError as config_error:
+        return jsonify({"error": str(config_error)}), 500
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/auth/verify-registration-code', methods=['POST'])
+def verify_registration_code():
+    try:
+        data = request.get_json() or {}
+        email = normalize_email(data.get("email"))
+        code = str(data.get("code") or "").strip()
+
+        if not email or not code:
+            return jsonify({"error": "Email and verification code are required."}), 400
+
+        firebase_user = auth.get_user_by_email(email)
+        verification_data = verification_store().child(firebase_user.uid).get() or {}
+
+        if not verification_data:
+            return jsonify({"error": "No verification request found. Please request a new code."}), 404
+
+        if is_verification_expired(verification_data.get("expires_at")):
+            verification_store().child(firebase_user.uid).delete()
+            return jsonify({"error": "Verification code expired. Please request a new code."}), 400
+
+        if not check_password_hash(verification_data.get("code_hash", ""), code):
+            attempts = int(verification_data.get("attempts", 0)) + 1
+            verification_store().child(firebase_user.uid).update({"attempts": attempts})
+            return jsonify({"error": "Invalid verification code."}), 400
+
+        auth.update_user(firebase_user.uid, email_verified=True)
+        create_user_profile(firebase_user.uid, verification_data.get("name"), email, registration_verified=True)
+        verification_store().child(firebase_user.uid).delete()
+
+        return jsonify({
+            "message": "Account verified successfully.",
+            "uid": firebase_user.uid
+        }), 200
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/auth/account-status/<uid>', methods=['GET'])
+def auth_account_status(uid):
+    try:
+        user_profile = user_store().child(uid).get() or {}
+        firebase_user = auth.get_user(uid)
+        registration_verified = bool(user_profile.get("registration_verified", True)) if user_profile else True
+        return jsonify({
+            "registration_verified": registration_verified,
+            "email_verified": bool(firebase_user.email_verified),
+            "email": firebase_user.email
+        }), 200
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/auth/email-status', methods=['POST'])
+def auth_email_status():
+    try:
+        data = request.get_json() or {}
+        email = normalize_email(data.get("email"))
+
+        if not email:
+            return jsonify({"error": "Email is required."}), 400
+
+        try:
+            firebase_user = auth.get_user_by_email(email)
+        except Exception:
+            return jsonify({
+                "exists": False,
+                "registration_verified": False,
+                "email_verified": False,
+                "message": "No account found for this email. Create a new RecipeGenie account to continue."
+            }), 200
+
+        user_profile = user_store().child(firebase_user.uid).get() or {}
+        registration_verified = bool(user_profile.get("registration_verified", True)) if user_profile else True
+
+        if registration_verified:
+            message = "This email is verified and ready to log in."
+        else:
+            message = "This account exists but is still waiting for email verification."
+
+        return jsonify({
+            "exists": True,
+            "uid": firebase_user.uid,
+            "registration_verified": registration_verified,
+            "email_verified": bool(firebase_user.email_verified),
+            "message": message
+        }), 200
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/auth/resend-registration-code', methods=['POST'])
+def resend_registration_code():
+    try:
+        data = request.get_json() or {}
+        email = normalize_email(data.get("email"))
+
+        if not email:
+            return jsonify({"error": "Email is required."}), 400
+
+        firebase_user = auth.get_user_by_email(email)
+        user_profile = user_store().child(firebase_user.uid).get() or {}
+        registration_verified = bool(user_profile.get("registration_verified", True)) if user_profile else True
+
+        if registration_verified:
+            return jsonify({"error": "This account is already verified. Please login with your password."}), 400
+
+        display_name = (
+            user_profile.get("name")
+            or getattr(firebase_user, "display_name", None)
+            or "RecipeGenie User"
+        )
+
+        upsert_registration_verification(firebase_user.uid, display_name, email)
+
+        return jsonify({
+            "message": "A new verification code was sent to your email.",
+            "email": email
+        }), 200
 
     except Exception as e:
         print("ERROR:", e)
@@ -271,10 +593,18 @@ def get_recipe_doc_ref(recipe_id):
 
 
 def stream_recipe_docs():
-    primary_docs = list(recipe_collection().stream())
+    try:
+        primary_docs = list(recipe_collection().stream())
+    except NotFound as error:
+        print(f"[WARN] Firestore recipe stream unavailable: {error}")
+        return []
     if primary_docs:
         return primary_docs
-    return list(legacy_recipe_collection().stream())
+    try:
+        return list(legacy_recipe_collection().stream())
+    except NotFound as error:
+        print(f"[WARN] Legacy Firestore recipe stream unavailable: {error}")
+        return []
 
 
 RECIPE_CACHE_TTL_SECONDS = 300
@@ -489,14 +819,18 @@ def load_existing_recipe_name_map():
 
     print("Loading existing recipe names from Firestore once...")
     existing_by_name = {}
-    for recipe_doc in recipe_collection().stream():
-        recipe_data = recipe_doc.to_dict() or {}
-        recipe_name = str(recipe_data.get("name", "")).strip().lower()
-        if recipe_name:
-            existing_by_name[recipe_name] = {
-                "id": recipe_doc.id,
-                "state_tags": recipe_data.get("state_tags", []),
-            }
+    try:
+        for recipe_doc in recipe_collection().stream():
+            recipe_data = recipe_doc.to_dict() or {}
+            recipe_name = str(recipe_data.get("name", "")).strip().lower()
+            if recipe_name:
+                existing_by_name[recipe_name] = {
+                    "id": recipe_doc.id,
+                    "state_tags": recipe_data.get("state_tags", []),
+                }
+    except NotFound as error:
+        print(f"[WARN] Firestore is not configured for duplicate checking: {error}")
+        raise
 
     print(f"Loaded {len(existing_by_name)} existing recipe names.")
     return existing_by_name
@@ -682,6 +1016,19 @@ def upload_all_recipes():
             "skipped_count": 0,
             "state_indexes_updated": 0,
         }
+    except NotFound as e:
+        print("Unexpected error during upload:")
+        print(str(e))
+        return {
+            "status": "error",
+            "message": (
+                "Firestore database is not configured for the current Firebase project. "
+                "Create Firestore for this project or switch the backend to a Firebase project that already has Firestore."
+            ),
+            "uploaded_count": 0,
+            "skipped_count": 0,
+            "state_indexes_updated": 0,
+        }
     except Exception as e:
         print("Unexpected error during upload:")
         print(str(e))
@@ -694,9 +1041,6 @@ def upload_all_recipes():
         }
 
 
-def upload_gujarati_recipes():
-    return upload_all_recipes()
-# #....................................................................................   
 
 def clean_recipe_name(name: str) -> str:
     if not isinstance(name, str):
@@ -863,36 +1207,19 @@ def get_healthy_recommendations(limit=5, exclude_recipe_id=None):
     recommendations = []
     seen_ids = set()
 
-    healthy_query = recipe_collection().where("health_label", "==", "Healthy").limit(limit * 3).stream()
+    try:
+        healthy_query = recipe_collection().where("health_label", "==", "Healthy").limit(limit * 3).stream()
+    except NotFound as error:
+        print(f"[WARN] Firestore is not configured for healthy recommendations: {error}")
+        return []
 
-    for doc in healthy_query:
-        if doc.id == exclude_recipe_id or doc.id in seen_ids:
-            continue
-
-        recipe = doc.to_dict() or {}
-        recipe["recipe_id"] = doc.id
-        recommendations.append({
-            "recipe_id": doc.id,
-            "name": recipe.get("name", "Recipe"),
-            "health_label": recipe.get("health_label", "Healthy"),
-            "health_score": recipe.get("health_score", 0),
-            "reason": recommendation_reason(recipe)
-        })
-        seen_ids.add(doc.id)
-
-        if len(recommendations) >= limit:
-            return recommendations
-
-    if len(recommendations) < limit:
-        fallback_docs = stream_recipe_docs()
-        for doc in fallback_docs:
+    try:
+        for doc in healthy_query:
             if doc.id == exclude_recipe_id or doc.id in seen_ids:
                 continue
 
-            recipe = ensure_recipe_health_data(doc.id, doc.to_dict() or {})
-            if recipe.get("health_label") != "Healthy":
-                continue
-
+            recipe = doc.to_dict() or {}
+            recipe["recipe_id"] = doc.id
             recommendations.append({
                 "recipe_id": doc.id,
                 "name": recipe.get("name", "Recipe"),
@@ -903,7 +1230,32 @@ def get_healthy_recommendations(limit=5, exclude_recipe_id=None):
             seen_ids.add(doc.id)
 
             if len(recommendations) >= limit:
-                break
+                return recommendations
+
+        if len(recommendations) < limit:
+            fallback_docs = stream_recipe_docs()
+            for doc in fallback_docs:
+                if doc.id == exclude_recipe_id or doc.id in seen_ids:
+                    continue
+
+                recipe = ensure_recipe_health_data(doc.id, doc.to_dict() or {})
+                if recipe.get("health_label") != "Healthy":
+                    continue
+
+                recommendations.append({
+                    "recipe_id": doc.id,
+                    "name": recipe.get("name", "Recipe"),
+                    "health_label": recipe.get("health_label", "Healthy"),
+                    "health_score": recipe.get("health_score", 0),
+                    "reason": recommendation_reason(recipe)
+                })
+                seen_ids.add(doc.id)
+
+                if len(recommendations) >= limit:
+                    break
+    except NotFound as error:
+        print(f"[WARN] Firestore fallback is unavailable for healthy recommendations: {error}")
+        return recommendations
 
     return recommendations
 
@@ -1741,11 +2093,33 @@ def cooked():
 def get_history(user_id):
     history = datab.collection('history').where('user_id', '==', user_id).stream()
     hist_list = []
+
+    def history_sort_value(item):
+        raw_value = item.get('cooked_at') or item.get('date')
+        if raw_value is None:
+            return datetime.datetime.min
+
+        if hasattr(raw_value, "to_pydatetime"):
+            return raw_value.to_pydatetime()
+
+        if isinstance(raw_value, datetime.datetime):
+            return raw_value
+
+        if isinstance(raw_value, str):
+            try:
+                return datetime.datetime.fromisoformat(raw_value.replace("Z", "+00:00"))
+            except ValueError:
+                return datetime.datetime.min
+
+        return datetime.datetime.min
+
     for hist in history:
         data = hist.to_dict()
         recipe = fetch_recipe_by_id(data['recipe_id'], ensure_health=False)
         data['recipe'] = recipe
         hist_list.append(data)
+
+    hist_list.sort(key=history_sort_value, reverse=True)
     return jsonify(hist_list), 200
 
 if __name__ == '__main__':

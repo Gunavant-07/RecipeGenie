@@ -11,9 +11,8 @@
 <body class="auth-page auth-login-page">
   <main class="auth-layout">
     <section class="auth-story" aria-label="RecipeGenie welcome">
-      <a class="auth-brand" href="{{ url_for('home') }}">
-        <span class="auth-brand-mark">RG</span>
-        <span>RecipeGenie</span>
+      <a class="auth-brand" href="{{ url_for('home') }}" aria-label="RecipeGenie home">
+        <img src="{{ url_for('static', filename='assets/recipegenie-logo.png') }}" alt="RecipeGenie" />
       </a>
       <div class="auth-story-copy">
         <span class="auth-kicker">Your smart kitchen companion</span>
@@ -31,7 +30,7 @@
         <div class="auth-card-heading">
           <span class="auth-kicker">Welcome back</span>
           <h2>Login</h2>
-          <p>Enter your details and jump back into cooking.</p>
+          <p>Enter your verified email and password to jump back into cooking.</p>
         </div>
 
         <form id="login-form" class="auth-form">
@@ -41,6 +40,12 @@
             <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email" required />
           </label>
 
+          <div id="login-status-panel" class="auth-status-panel auth-status-neutral" style="display:none;">
+            <span id="login-status-kicker" class="auth-status-kicker">Account status</span>
+            <strong id="login-status-title">Waiting for email</strong>
+            <p id="login-status-message">Enter your email to check whether your RecipeGenie account is verified.</p>
+          </div>
+
           <label class="field-shell" for="login-password">
             <span>Password</span>
             <i class="fas fa-lock"></i>
@@ -48,10 +53,21 @@
           </label>
 
           <p id="login-error" class="auth-error" role="alert"></p>
+          <div id="login-success" class="auth-success" role="status"></div>
 
           <button type="submit" class="auth-submit">
             Login
             <i class="fas fa-arrow-right"></i>
+          </button>
+
+          <button type="button" id="forgot-password-btn" class="auth-submit auth-submit-secondary">
+            Send password reset link
+            <i class="fas fa-envelope-open-text"></i>
+          </button>
+
+          <button type="button" id="resend-verification-btn" class="auth-submit auth-submit-secondary" style="display:none;">
+            Resend verification code
+            <i class="fas fa-rotate-right"></i>
           </button>
         </form>
 

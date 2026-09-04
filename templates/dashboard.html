@@ -123,6 +123,79 @@
       border: 1px solid rgba(178, 58, 43, 0.16);
     }
 
+    .dashboard-favorites-summary {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .dashboard-favorites-summary strong {
+      display: block;
+      margin-top: 0.3rem;
+      color: var(--secondary);
+      font-size: 1.4rem;
+    }
+
+    .dashboard-scroll-panel {
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 0.25rem;
+    }
+
+    .dashboard-scroll-panel::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .dashboard-scroll-panel::-webkit-scrollbar-thumb {
+      background: rgba(180, 136, 73, 0.45);
+      border-radius: 999px;
+    }
+
+    .dashboard-scroll-panel::-webkit-scrollbar-track {
+      background: rgba(239, 230, 215, 0.7);
+      border-radius: 999px;
+    }
+
+    .dashboard-favorite-item {
+      display: grid;
+      gap: 0.7rem;
+      border-radius: 16px;
+      padding: 0.9rem;
+      background: linear-gradient(180deg, #fffdf9 0%, #fff7ec 100%);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .dashboard-favorite-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.7rem;
+      align-items: start;
+    }
+
+    .dashboard-favorite-top strong {
+      color: var(--secondary);
+      line-height: 1.4;
+    }
+
+    .dashboard-favorite-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      color: var(--gray);
+      font-size: 0.84rem;
+    }
+
+    .dashboard-favorite-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
+    .dashboard-favorite-actions .btn {
+      min-width: 124px;
+    }
+
     @media (max-width: 980px) {
       .dashboard-grid,
       .dashboard-layout {
@@ -141,7 +214,7 @@
 <body>
   <header>
     <nav class="navbar">
-      <div class="logo">RecipeGenie</div>
+      <a class="logo" href="{{ url_for('home') }}" aria-label="RecipeGenie home"><img src="{{ url_for('static', filename='assets/recipegenie-logo.png') }}" alt="RecipeGenie" /></a>
       <div class="hamburger"><i class="fas fa-bars"></i></div>
       <ul class="nav-menu">
         <li><a href="{{ url_for('home') }}">Home</a></li>
@@ -206,12 +279,18 @@
         <div class="dashboard-panel">
           <h2>Quick Insights</h2>
           <div class="dashboard-list">
-            <div class="dashboard-list-item">
-              <span style="display:block; color:var(--gray); font-size:0.85rem;">Favorites Saved</span>
-              <strong id="dashboard-favorites-count" style="display:block; margin-top:0.3rem; color:var(--secondary); font-size:1.4rem;">0</strong>
+            <div class="dashboard-list-item dashboard-favorites-summary">
+              <div>
+                <span style="display:block; color:var(--gray); font-size:0.85rem;">Favorites Saved</span>
+                <strong id="dashboard-favorites-count">0</strong>
+              </div>
+              <span class="badge healthy">Favorites</span>
             </div>
             <div class="dashboard-list-item dashboard-warning" id="dashboard-warning"></div>
             <div class="dashboard-list-item" id="dashboard-tip-card">Balanced cooking starts with one healthier next meal.</div>
+            <div class="dashboard-scroll-panel" id="dashboard-favorites-list">
+              <div class="dashboard-list-item">Favorite recipes will appear here after you like them.</div>
+            </div>
           </div>
         </div>
       </div>

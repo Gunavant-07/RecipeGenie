@@ -391,7 +391,7 @@
   <body>
     <header>
       <nav class="navbar">
-        <div class="logo">RecipeGenie</div>
+        <a class="logo" href="{{ url_for('home') }}" aria-label="RecipeGenie home"><img src="{{ url_for('static', filename='assets/recipegenie-logo.png') }}" alt="RecipeGenie" /></a>
         <div class="hamburger">
           <i class="fas fa-bars"></i>
         </div>
@@ -436,7 +436,7 @@
               <div class="recipe-overlay">
                 <div class="recipe-badges">
                   <span class="badge moderate">{{ recipe.category }}</span>
-                  <span class="badge healthy">{{ recipe.health_label }}</span>
+                  <span class="badge {{ (recipe.health_label or 'Moderate')|lower|replace(' ', '-') }}">{{ recipe.health_label }}</span>
                 </div>
                 <div>
                   <span class="recipe-hero-kicker">Recipe Overview</span>

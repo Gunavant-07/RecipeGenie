@@ -307,7 +307,7 @@
   <body>
     <header>
       <nav class="navbar">
-        <div class="logo">RecipeGenie</div>
+        <a class="logo" href="{{ url_for('home') }}" aria-label="RecipeGenie home"><img src="{{ url_for('static', filename='assets/recipegenie-logo.png') }}" alt="RecipeGenie" /></a>
         <div class="hamburger">
           <i class="fas fa-bars"></i>
         </div>

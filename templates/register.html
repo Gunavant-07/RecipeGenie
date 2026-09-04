@@ -11,9 +11,8 @@
 <body class="auth-page auth-register-page">
   <main class="auth-layout">
     <section class="auth-story" aria-label="RecipeGenie account benefits">
-      <a class="auth-brand" href="{{ url_for('home') }}">
-        <span class="auth-brand-mark">RG</span>
-        <span>RecipeGenie</span>
+      <a class="auth-brand" href="{{ url_for('home') }}" aria-label="RecipeGenie home">
+        <img src="{{ url_for('static', filename='assets/recipegenie-logo.png') }}" alt="RecipeGenie" />
       </a>
       <div class="auth-story-copy">
         <span class="auth-kicker">Cook smarter from day one</span>
@@ -31,7 +30,7 @@
         <div class="auth-card-heading">
           <span class="auth-kicker">Start cooking</span>
           <h2>Create account</h2>
-          <p>Use a strong password with uppercase, lowercase, number, and special character.</p>
+          <p>Use a strong password, then verify your account with the 6-digit code sent to your email.</p>
         </div>
 
         <form id="register-form" class="auth-form">
@@ -59,12 +58,29 @@
             <input id="confirm-password" type="password" placeholder="Repeat password" autocomplete="new-password" required />
           </label>
 
-          <div id="reg-error" class="auth-error error" role="alert"></div>
+          <div id="register-code-shell" class="verification-shell" style="display:none;">
+            <label class="field-shell verification-field" for="register-verification-code">
+              <span>6-digit verification code</span>
+              <i class="fas fa-key"></i>
+              <input id="register-verification-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" />
+            </label>
+            <p id="register-code-help" class="auth-helper">We sent a 6-digit verification code to your email. Enter it here to finish registration.</p>
+          </div>
 
-          <button type="submit" class="auth-submit">
-            Create account
-            <i class="fas fa-arrow-right"></i>
-          </button>
+          <div id="reg-error" class="auth-error error" role="alert"></div>
+          <div id="reg-success" class="auth-success" role="status"></div>
+
+          <div class="auth-action-stack">
+            <button type="button" id="send-register-code" class="auth-submit">
+              Send verification code
+              <i class="fas fa-paper-plane"></i>
+            </button>
+
+            <button type="submit" id="verify-register-code" class="auth-submit auth-submit-secondary" disabled>
+              Verify code and create account
+              <i class="fas fa-user-check"></i>
+            </button>
+          </div>
         </form>
 
         <p class="auth-switch">Already registered? <a href="{{ url_for('login_page') }}">Login instead</a></p>
