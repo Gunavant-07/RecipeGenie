@@ -1,4 +1,4 @@
-# RecipeGenie
+ï»¿# RecipeGenie
 
 <p align="center">
   <img src="static/assets/recipegenie-logo.png" alt="RecipeGenie" width="360" />
@@ -6,20 +6,67 @@
 
 RecipeGenie is a smart recipe recommendation and health-monitoring web application. Users can add ingredients through text, voice, image detection, or camera capture, find matching recipes, save favorites, track cooked meals, and review nutrition-based health guidance.
 
-## Screenshots
+## Output screenshots
 
-### Home: Ingredient-based recipe search
+### Home: ingredient search and detection
 
-![RecipeGenie home page](docs/screenshots/home.png)
+![Home page with ingredient search, voice input, image detection, and camera capture](static/assets/screenshots/home-ingredient-search.png)
 
-### Generate Recipe: text, voice, image, and camera input
+The home screen collects ingredients in one shared bar. Users can type several ingredients, use voice input, upload a food image, or capture one with the camera. The detection mode selector supports the single-ingredient and multiple-ingredient YOLO models before detected items are added to the search.
 
-![RecipeGenie recipe generator](docs/screenshots/generate-recipe.png)
+### Home: matched recipe results
 
-### Login: secure account access and password reset
+![Filtered recipe results for the detected Paneer ingredient](static/assets/screenshots/home-filtered-recipes.png)
 
-![RecipeGenie login page](docs/screenshots/login.png)
+After an ingredient is detected or added manually, `Find Matching Recipes` shows only Firebase recipes containing that ingredient. Each recipe card shows its match percentage, health type, ingredient dialog, favorite action, and cooking action.
 
+### Dashboard: cooking activity and quick insights
+
+![Cooking dashboard with health totals, recent activity, and favorites insight](static/assets/screenshots/dashboard-overview.png)
+
+The dashboard summarizes cooked recipes, healthy, moderate, and unhealthy meals, the user health score, recent cooking activity, and saved-favorite insights.
+
+### Recipe catalog: cuisine search and favorites
+
+![Recipe catalog with search, cuisine filter, health tags, and recipe card actions](static/assets/screenshots/recipes-catalog.png)
+
+The Recipes page provides a recipe-name search, cuisine selection, high-rating filter, and compact cards with health status, ingredients preview, favorite control, and a direct recipe-detail button.
+
+### Generate Recipe: ingredient capture
+
+![Generate Recipe page with manual input, voice input, image detection, and camera capture](static/assets/screenshots/generate-recipe-input.png)
+
+The generator accepts ingredients from typed text, voice recognition, uploaded images, and camera capture. Ingredient notes can be added before generating a custom recipe with nutrition guidance.
+
+### Generate Recipe: generated cooking plan
+
+![Generated Carrot Smart Recipe with ingredients, cooking steps, and nutrition estimate](static/assets/screenshots/generated-recipe-result.png)
+
+Generated recipes include a health label and score, estimated cooking time, ingredient list, step-by-step cooking instructions, and nutrition estimates for calories, protein, fiber, and fat.
+
+### Recipe detail: cooking summary
+
+![Aloo Matar Paneer recipe detail with cooking summary, ingredients, and nutrition breakdown](static/assets/screenshots/recipe-detail-overview.png)
+
+The detail page combines the recipe overview with preparation time, cook time, servings, health score, full ingredients, and a nutrition breakdown. Selecting `Cooked This` saves the meal to the user's tracking data.
+
+### Recipe detail: steps and nutrition notes
+
+![Recipe cooking steps beside nutrition notes and matched nutrition ingredients](static/assets/screenshots/recipe-detail-nutrition.png)
+
+Scrollable ingredient panels keep the recipe page compact while the cooking steps, nutrition notes, nutrient values, and matched nutrition ingredients remain visible and easy to review.
+
+### Cooking history: newest meals first
+
+![Cooking history with time-ordered cooked recipe cards](static/assets/screenshots/cooking-history.png)
+
+Cooking History stores completed meals newest first. Each card contains the cooked time, health type, health score, calories, and quick actions to cook again or reopen the original recipe.
+
+### Health tracker: recommendations and recent meals
+
+![Health tracker with recommended healthy recipes and recent meal nutrition summaries](static/assets/screenshots/health-tracker.png)
+
+The health tracker analyzes saved cooking activity, displays healthy, moderate, and unhealthy meal counts, recommends healthier recipes for the next meal, and keeps recent meal nutrition summaries in a scrollable panel.
 ## Features
 
 - Ingredient-based recipe filtering from the Firebase recipe collection
@@ -60,9 +107,9 @@ RecipeGenie/
 +-- archive/                  # Recipe CSV dataset
 +-- nutritiondata.xlsx        # Ingredient nutrition data
 +-- static/
-¦   +-- assets/               # RecipeGenie logo and static assets
-¦   +-- css/style.css         # Shared responsive styles
-¦   +-- js/app.js             # Client-side interaction logic
+Â¦   +-- assets/               # RecipeGenie logo and output screenshots
+Â¦   +-- css/style.css         # Shared responsive styles
+Â¦   +-- js/app.js             # Client-side interaction logic
 +-- templates/                # Flask HTML pages
 +-- docs/screenshots/         # README output screenshots
 ```
