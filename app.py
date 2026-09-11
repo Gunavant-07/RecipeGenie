@@ -20,6 +20,8 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+
 
 
 def load_local_env(path=".env"):
@@ -45,13 +47,30 @@ def get_env_setting(key, default=""):
 
 app = Flask(__name__)
 CORS(app)  
-app.config['AUTH_VERIFICATION_EXPIRY_MINUTES'] = 10
-app.config['SMTP_HOST'] = get_env_setting('SMTP_HOST', 'smtp.gmail.com')
-app.config['SMTP_PORT'] = int(get_env_setting('SMTP_PORT', '587') or 587)
-app.config['SMTP_USERNAME'] = get_env_setting('SMTP_USERNAME', 'smartyboy4873@gmail.com')
-app.config['SMTP_PASSWORD'] = get_env_setting('SMTP_PASSWORD', 'xyceqzbexniddhiv')
-app.config['SMTP_FROM_EMAIL'] = get_env_setting('SMTP_FROM_EMAIL', app.config['SMTP_USERNAME'])
-app.config['SMTP_USE_TLS'] = str(get_env_setting('SMTP_USE_TLS', 'true')).lower() != 'false'
+load_dotenv()
+
+app.config['AUTH_VERIFICATION_EXPIRY_MINUTES'] = int(
+    os.getenv('AUTH_VERIFICATION_EXPIRY_MINUTES', '10')
+)
+
+app.config['SMTP_HOST'] = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+
+app.config['SMTP_PORT'] = int(
+    os.getenv('SMTP_PORT', '587')
+)
+
+app.config['SMTP_USERNAME'] = os.getenv('SMTP_USERNAME')
+
+app.config['SMTP_PASSWORD'] = os.getenv('SMTP_PASSWORD')
+
+app.config['SMTP_FROM_EMAIL'] = os.getenv(
+    'SMTP_FROM_EMAIL',
+    app.config['SMTP_USERNAME']
+)
+
+app.config['SMTP_USE_TLS'] = (
+    os.getenv('SMTP_USE_TLS', 'true').lower() != 'false'
+)
 
 SINGLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\single.pt"
 MULTIPLE_MODEL_PATH = r"E:\RecipeGenie\RecipeGenie\model\multimodel.pt"
